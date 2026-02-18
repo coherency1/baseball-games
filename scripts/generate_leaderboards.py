@@ -176,38 +176,17 @@ def main():
                         help="Last season to include (default: 2010)")
     parser.add_argument("--top",    type=int, default=150,
                         help="Players per category (default: 150)")
+    parser.add_argument("--local-dir", default=None, dest="local_dir",
+                        help="Path to a directory containing People.csv, Batting.csv, "
+                             "Pitching.csv (skips all downloads). Get these files from "
+                             "http://seanlahman.com/baseball-archive/statistics/")
     args = parser.parse_args()
 
     try:
         import pandas as pd
-        import requests
-        from zipfile import ZipFile
-        from io import BytesIO
-        import pybaseball.lahman as _lahman
     except ImportError:
-        print("ERROR: Run:  pip install pandas requests pybaseball")
+        print("ERROR: Run:  pip install pandas")
         sys.exit(1)
-
-    # ── Monkey-patch pybaseball's broken get_lahman_zip ────────────
-    # pybaseball hardcodes the 'master' branch URL which is now a dead
-    # redirect. Patch it to try the correct /archive/refs/heads/ path.
-    def _fixed_get_lahman_zip():
-        for branch in ("main", "master"):
-            url = (f"https://github.com/chadwickbureau/baseballdatabank"
-                   f"/archive/refs/heads/{branch}.zip")
-            try:
-                r = requests.get(url, timeout=60)
-                r.raise_for_status()
-                z = ZipFile(BytesIO(r.content))
-                print(f"  Lahman ZIP downloaded (branch: {branch}, {len(r.content)//1024} KB)")
-                return z
-            except Exception as e:
-                print(f"  Branch '{branch}' failed: {e}")
-        raise RuntimeError(
-            "Could not download Lahman database from GitHub. "
-            "Check your internet connection."
-        )
-    _lahman.get_lahman_zip = _fixed_get_lahman_zip
 
     era_label = f"All-Time ({args.start}–{args.end})"
 
@@ -216,27 +195,110 @@ def main():
     print(f"Range: {args.start}-{args.end}  |  Top {args.top} per category")
     print("=" * 60)
 
-    # ── People (name map) ──────────────────────────────────────────
-    print("\n[1/4] Loading Lahman People.csv...")
-    people_df = _lahman.people()
-    name_map  = build_name_map(people_df)
-    print(f"  {len(name_map)} players in name map")
+    # ── Load Lahman CSVs ───────────────────────────────────────────
+    # The Chadwick Bureau GitHub repo (pybaseball's source) has been taken
+    # down. Use --local-dir to supply CSVs downloaded from Sean Lahman's site.
+    if args.local_dir:
+        import os
+        local = args.local_dir.rstrip("/")
+        print(f"\n[1/4] Reading Lahman CSVs from local dir: {local}")
+        def _read_local(name):
+            path = os.path.join(local, name)
+            if not os.path.exists(path):
+                raise FileNotFoundError(
+                    f"Missing {path}\n"
+                    f"Download the Lahman database from:\n"
+                    f"  http://www.seanlahman.com/baseball-archive/statistics/\n"
+                    f"(choose the 'comma-delimited version') then extract it and "
+                    f"pass the extracted folder with --local-dir"
+                )
+            return pd.read_csv(path, low_memory=False)
 
-    # ── Batting ───────────────────────────────────────────────────
-    print("\n[2/4] Loading Lahman Batting.csv...")
-    bat_df = _lahman.batting()
+        people_df = _read_local("People.csv")
+        name_map  = build_name_map(people_df)
+        print(f"  {len(name_map)} players in name map")
+
+        print("\n[2/4] Parsing Batting.csv...")
+        bat_df = _read_local("Batting.csv")
+
+        print("\n[3/4] Parsing Pitching.csv...")
+        pit_df = _read_local("Pitching.csv")
+
+    else:
+        # Try downloading Sean Lahman's official ZIP (no GitHub dependency)
+        try:
+            import requests
+            from zipfile import ZipFile
+            from io import BytesIO
+        except ImportError:
+            print("ERROR: Run:  pip install requests")
+            sys.exit(1)
+
+        LAHMAN_URLS = [
+            # Sean Lahman's canonical download (CSV version, current)
+            "https://www.seanlahman.com/files/database/lahmansbaseballdb.zip",
+            # Versioned fallback
+            "https://www.seanlahman.com/files/database/lahmansbaseballdb-v2023.zip",
+        ]
+        print("\n[1/4] Downloading Lahman database from seanlahman.com...")
+        zip_data = None
+        for url in LAHMAN_URLS:
+            try:
+                print(f"  Trying {url}")
+                r = requests.get(url, timeout=90,
+                                 headers={"User-Agent": "Mozilla/5.0"})
+                r.raise_for_status()
+                zip_data = ZipFile(BytesIO(r.content))
+                print(f"  Downloaded {len(r.content)//1024} KB")
+                break
+            except Exception as e:
+                print(f"  Failed: {e}")
+
+        if zip_data is None:
+            print("\n" + "="*60)
+            print("DOWNLOAD FAILED — manual setup required:")
+            print("  1. Go to http://www.seanlahman.com/baseball-archive/statistics/")
+            print("  2. Download the 'comma-delimited version' ZIP")
+            print("  3. Extract it to a folder, e.g. ~/Downloads/lahman/")
+            print("  4. Re-run with:")
+            print("       python scripts/generate_leaderboards.py \\")
+            print("         --local-dir ~/Downloads/lahman --end 2010 --top 150")
+            print("="*60)
+            sys.exit(1)
+
+        # Find which names the ZIP uses (varies by version)
+        names = zip_data.namelist()
+        def _find_csv(candidates):
+            for c in candidates:
+                matches = [n for n in names if n.lower().endswith(c.lower())]
+                if matches:
+                    return matches[0]
+            raise KeyError(f"Could not find {candidates[0]} in ZIP. Files: {names[:10]}")
+
+        def _read_zip(candidates):
+            path = _find_csv(candidates)
+            with zip_data.open(path) as f:
+                return pd.read_csv(f, low_memory=False)
+
+        print("\n[1/4] Parsing People.csv...")
+        people_df = _read_zip(["People.csv", "Master.csv"])
+        name_map  = build_name_map(people_df)
+        print(f"  {len(name_map)} players in name map")
+
+        print("\n[2/4] Parsing Batting.csv...")
+        bat_df = _read_zip(["Batting.csv"])
+
+        print("\n[3/4] Parsing Pitching.csv...")
+        pit_df = _read_zip(["Pitching.csv"])
+
+    # ── Filter by year range ───────────────────────────────────────
     bat_df = bat_df[(bat_df["yearID"] >= args.start) & (bat_df["yearID"] <= args.end)]
     print(f"  {len(bat_df)} batting rows ({bat_df['yearID'].nunique()} seasons)")
-    print("  Aggregating career batting totals...")
     bat = aggregate_lahman_batting(bat_df, name_map)
     print(f"  {len(bat)} unique batters")
 
-    # ── Pitching ──────────────────────────────────────────────────
-    print("\n[3/4] Loading Lahman Pitching.csv...")
-    pit_df = _lahman.pitching()
     pit_df = pit_df[(pit_df["yearID"] >= args.start) & (pit_df["yearID"] <= args.end)]
     print(f"  {len(pit_df)} pitching rows ({pit_df['yearID'].nunique()} seasons)")
-    print("  Aggregating career pitching totals...")
     pit = aggregate_lahman_pitching(pit_df, name_map)
     print(f"  {len(pit)} unique pitchers")
 
