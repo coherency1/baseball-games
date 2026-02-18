@@ -37,19 +37,46 @@ function usePlayerData() {
 // =====================================================================
 
 function TeamLogo({ team, size = 40 }) {
+  const [imgError, setImgError] = useState(false);
   const info = MLB_TEAMS[team];
   if (!info) return (
     <div style={{ width:size,height:size,borderRadius:"50%",background:"#333",display:"flex",alignItems:"center",justifyContent:"center",border:"2px solid rgba(255,255,255,0.1)",flexShrink:0 }}>
       <span style={{ color:"#888",fontSize:size*0.28,fontWeight:800 }}>MLB</span>
     </div>
   );
+  if (imgError) return (
+    <div style={{ width:size,height:size,borderRadius:"50%",background:info.color,display:"flex",alignItems:"center",justifyContent:"center",border:"2px solid rgba(255,255,255,0.15)",flexShrink:0 }}>
+      <span style={{ color:"#fff",fontSize:size*0.30,fontWeight:800,textShadow:"0 1px 2px rgba(0,0,0,0.5)",letterSpacing:"-0.03em" }}>{team}</span>
+    </div>
+  );
   return (
-    <img
-      src={getTeamLogoUrl(team)}
-      alt={info.name}
-      style={{ width:size,height:size,objectFit:"contain",flexShrink:0 }}
-      onError={e => { e.target.style.display="none"; }}
-    />
+    <div style={{ width:size,height:size,borderRadius:Math.round(size*0.18),background:"rgba(255,255,255,0.93)",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,overflow:"hidden" }}>
+      <img
+        src={getTeamLogoUrl(team)}
+        alt={info.name}
+        style={{ width:size*0.82,height:size*0.82,objectFit:"contain" }}
+        onError={() => setImgError(true)}
+      />
+    </div>
+  );
+}
+
+function MlbLogo({ size = 44 }) {
+  const [imgError, setImgError] = useState(false);
+  if (imgError) return (
+    <div style={{ width:size,height:size,borderRadius:Math.round(size*0.18),background:"#1e3a5f",display:"flex",alignItems:"center",justifyContent:"center",border:"2px solid rgba(255,255,255,0.1)",flexShrink:0 }}>
+      <span style={{ color:"#fff",fontSize:size*0.26,fontWeight:800 }}>MLB</span>
+    </div>
+  );
+  return (
+    <div style={{ width:size,height:size,borderRadius:Math.round(size*0.18),background:"rgba(255,255,255,0.93)",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,overflow:"hidden" }}>
+      <img
+        src="https://a.espncdn.com/i/teamlogos/leagues/500/mlb.png"
+        alt="MLB"
+        style={{ width:size*0.82,height:size*0.82,objectFit:"contain" }}
+        onError={() => setImgError(true)}
+      />
+    </div>
   );
 }
 
@@ -71,9 +98,10 @@ function PlayerSearchModal({ playerSeasons, onSelect, onClose }) {
     return Object.values(map);
   }, [playerSeasons]);
 
-  const filtered = query.length >= 2
-    ? playerIndex.filter(p => p.name.toLowerCase().includes(query.toLowerCase())).slice(0,8)
+  const allFiltered = query.length >= 2
+    ? playerIndex.filter(p => p.name.toLowerCase().includes(query.toLowerCase()))
     : [];
+  const filtered = allFiltered.slice(0, 15);
 
   const playerYears = selectedPlayer
     ? [...new Set(playerSeasons.filter(ps => ps.name === selectedPlayer).map(ps => ps.year))].sort((a,b)=>b-a)
@@ -101,7 +129,8 @@ function PlayerSearchModal({ playerSeasons, onSelect, onClose }) {
                 <span style={{ color:"rgba(255,255,255,0.35)",fontSize:"13px" }}>{p.minYear} - {p.maxYear}</span>
               </div>
             ))}
-            {query.length>=2 && filtered.length===0 && <div style={{ padding:"20px",textAlign:"center",color:"rgba(255,255,255,0.3)",fontSize:"14px" }}>No players found</div>}
+            {query.length>=2 && allFiltered.length===0 && <div style={{ padding:"20px",textAlign:"center",color:"rgba(255,255,255,0.3)",fontSize:"14px" }}>No players found</div>}
+            {allFiltered.length > 15 && <div style={{ padding:"10px 20px",textAlign:"center",color:"rgba(255,255,255,0.25)",fontSize:"12px",borderTop:"1px solid rgba(255,255,255,0.05)" }}>Showing 15 of {allFiltered.length} — type more to narrow results</div>}
           </div>
         </>) : (<>
           <div style={{ padding:"16px 20px",borderBottom:"1px solid rgba(255,255,255,0.08)" }}>
@@ -151,13 +180,16 @@ function ResultCard({ playerName, year, team, score, statLabel, percentile, onCl
   );
 }
 
-function IncorrectCard({ playerName, year, reason }) {
+function IncorrectCard({ playerName, year, reason, onClick, showingTop5 }) {
   return (
-    <div style={{ background:"rgba(239,68,68,0.1)",borderRadius:"12px",padding:"14px 18px",border:"1px solid rgba(239,68,68,0.3)",display:"flex",alignItems:"center",gap:"12px" }}>
-      <div style={{ width:"36px",height:"36px",borderRadius:"50%",background:"rgba(239,68,68,0.2)",display:"flex",alignItems:"center",justifyContent:"center",color:"#ef4444",fontSize:"18px",fontWeight:800,flexShrink:0 }}>X</div>
-      <div>
+    <div style={{ background:"rgba(239,68,68,0.1)",borderRadius:"12px",padding:"14px 18px",border:"1px solid rgba(239,68,68,0.3)",display:"flex",alignItems:"center",gap:"12px",cursor:"pointer" }} onClick={onClick}>
+      <div style={{ width:"36px",height:"36px",borderRadius:"50%",background:"rgba(239,68,68,0.2)",display:"flex",alignItems:"center",justifyContent:"center",color:"#ef4444",fontSize:"18px",fontWeight:800,flexShrink:0 }}>✕</div>
+      <div style={{ flex:1,minWidth:0 }}>
         <div style={{ color:"#fca5a5",fontWeight:700,fontSize:"15px" }}>{playerName} {year?`(${year})`:""}</div>
         <div style={{ color:"rgba(255,255,255,0.4)",fontSize:"12px",marginTop:"2px" }}>{reason}</div>
+      </div>
+      <div style={{ fontSize:"10px",color:"rgba(255,255,255,0.3)",fontWeight:600,flexShrink:0,letterSpacing:"0.04em" }}>
+        {showingTop5 ? "▲ HIDE" : "▼ TOP 5"}
       </div>
     </div>
   );
@@ -178,6 +210,32 @@ function StatsPanel({ ps }) {
   );
 }
 
+// -- Top 5 answers for a row --
+function Top5Panel({ validAnswers, scoringStatKey, scoringStatLabel }) {
+  const top5 = [...validAnswers]
+    .sort((a, b) => (b[scoringStatKey] || 0) - (a[scoringStatKey] || 0))
+    .slice(0, 5);
+  const fmt = v => typeof v === "number" && v % 1 !== 0 ? v.toFixed(3) : (v ?? "-");
+  return (
+    <div style={{ marginTop:"6px",background:"rgba(255,255,255,0.02)",borderRadius:"8px",overflow:"hidden",border:"1px solid rgba(255,255,255,0.06)" }}>
+      <div style={{ padding:"7px 12px",fontSize:"10px",color:"rgba(255,255,255,0.3)",letterSpacing:"0.1em",fontWeight:700,borderBottom:"1px solid rgba(255,255,255,0.05)" }}>
+        TOP 5 ANSWERS
+      </div>
+      {top5.map((ps, idx) => (
+        <div key={`${ps.name}-${ps.year}`} style={{ display:"flex",alignItems:"center",gap:"10px",padding:"7px 12px",borderBottom:idx<4?"1px solid rgba(255,255,255,0.04)":"none" }}>
+          <span style={{ width:"16px",fontSize:"11px",color:"rgba(255,255,255,0.25)",fontWeight:700,flexShrink:0 }}>#{idx+1}</span>
+          <TeamLogo team={ps.team} size={22} />
+          <span style={{ flex:1,fontSize:"13px",color:"rgba(255,255,255,0.85)",fontWeight:600 }}>{ps.name}</span>
+          <span style={{ fontSize:"11px",color:"rgba(255,255,255,0.35)",flexShrink:0 }}>{ps.year}</span>
+          <span style={{ fontSize:"13px",fontWeight:800,color:"#f59e0b",minWidth:"52px",textAlign:"right",flexShrink:0 }}>
+            {fmt(ps[scoringStatKey] || 0)} {scoringStatLabel}
+          </span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 // -- Category Display for each column --
 function CategoryDisplay({ category }) {
   const { type } = category;
@@ -189,21 +247,26 @@ function CategoryDisplay({ category }) {
     );
   }
   if (type === CATEGORY_TYPES.DIVISION && category.teams) {
+    const top = category.teams.slice(0, 2);
+    const bottom = category.teams.slice(2);
     return (
-      <div style={{ display:"flex",flexDirection:"column",alignItems:"center",gap:"4px",minWidth:"70px" }}>
-        <div style={{ display:"flex",gap:"2px",flexWrap:"wrap",justifyContent:"center" }}>
-          {category.teams.slice(0,3).map(t => <TeamLogo key={t} team={t} size={22} />)}
+      <div style={{ display:"flex",flexDirection:"column",alignItems:"center",gap:"3px" }}>
+        <div style={{ display:"flex",gap:"3px",justifyContent:"center" }}>
+          {top.map(t => <TeamLogo key={t} team={t} size={22} />)}
         </div>
-        <span style={{ fontSize:"10px",color:"rgba(255,255,255,0.5)",fontWeight:600 }}>{category.label}</span>
+        <div style={{ display:"flex",gap:"3px",justifyContent:"center" }}>
+          {bottom.map(t => <TeamLogo key={t} team={t} size={22} />)}
+        </div>
+        <span style={{ fontSize:"10px",color:"rgba(255,255,255,0.5)",fontWeight:600,textAlign:"center",marginTop:"2px" }}>{category.label}</span>
       </div>
     );
   }
   if (type === CATEGORY_TYPES.LEAGUE) {
-    // Show 3 team logos from that league
-    const leagueTeams = Object.keys(MLB_TEAMS).filter(k=>MLB_TEAMS[k].league===category.value).slice(0,3);
     return (
       <div style={{ display:"flex",flexDirection:"column",alignItems:"center",gap:"4px",minWidth:"70px" }}>
-        <div style={{ display:"flex",gap:"2px" }}>{leagueTeams.map(t=><TeamLogo key={t} team={t} size={20} />)}</div>
+        <div style={{ width:44,height:44,borderRadius:Math.round(44*0.18),background:"rgba(255,255,255,0.93)",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0 }}>
+          <span style={{ color:"#1a1d23",fontSize:18,fontWeight:900,letterSpacing:"-0.02em" }}>{category.value}</span>
+        </div>
         <span style={{ fontSize:"10px",color:"rgba(255,255,255,0.5)",fontWeight:600 }}>{category.label}</span>
       </div>
     );
@@ -211,9 +274,7 @@ function CategoryDisplay({ category }) {
   if (type === CATEGORY_TYPES.ALL_TEAMS) {
     return (
       <div style={{ display:"flex",flexDirection:"column",alignItems:"center",gap:"4px",minWidth:"70px" }}>
-        <div style={{ width:44,height:44,borderRadius:"50%",background:"#1e3a5f",display:"flex",alignItems:"center",justifyContent:"center",border:"2px solid rgba(255,255,255,0.1)" }}>
-          <span style={{ color:"#fff",fontSize:12,fontWeight:800 }}>MLB</span>
-        </div>
+        <MlbLogo size={44} />
       </div>
     );
   }
@@ -233,6 +294,7 @@ function CategoryDisplay({ category }) {
   let topLabel = "";
   if (type === CATEGORY_TYPES.POSITION) topLabel = "POSITION";
   if (type === CATEGORY_TYPES.BATS) topLabel = "BATS";
+  const isAnyPos = type === CATEGORY_TYPES.POSITION && (category.value === "DH" || category.value === "UTL");
   return (
     <div style={{ textAlign:"center",minWidth:"80px" }}>
       {topLabel && <div style={{ fontSize:"9px",color:"rgba(255,255,255,0.4)",letterSpacing:"0.08em",marginBottom:"2px" }}>{topLabel}</div>}
@@ -240,14 +302,17 @@ function CategoryDisplay({ category }) {
       {type === CATEGORY_TYPES.STAT_THRESHOLD && (
         <div style={{ fontSize:"8px",color:"#f59e0b",fontWeight:700,letterSpacing:"0.08em",background:"rgba(245,158,11,0.15)",borderRadius:"3px",padding:"2px 6px",marginTop:"3px",display:"inline-block" }}>SAME SEASON</div>
       )}
+      {isAnyPos && (
+        <div style={{ fontSize:"8px",color:"#60a5fa",fontWeight:700,letterSpacing:"0.08em",background:"rgba(96,165,250,0.12)",borderRadius:"3px",padding:"2px 6px",marginTop:"3px",display:"inline-block" }}>ANY POS</div>
+      )}
     </div>
   );
 }
 
 // -- Puzzle Row --
-function PuzzleRow({ row, rowIndex, scoringStat, submission, allRows, playerSeasons, onClickAdd }) {
+function PuzzleRow({ row, rowIndex, scoringStat, submission, allRows, playerSeasons, onClickAdd, retryMode, wrongRowAttempts }) {
   const [showStats, setShowStats] = useState(false);
-  const percentile = submission?.correct ? computePercentile(submission.score, scoringStat.key, allRows) : 0;
+  const percentile = submission?.correct ? computePercentile(submission.score, scoringStat.key, row) : 0;
   const matchedSeason = submission?.correct ? playerSeasons.find(ps => ps.name===submission.playerName && ps.year===submission.year) : null;
 
   if (submission?.correct) {
@@ -255,11 +320,17 @@ function PuzzleRow({ row, rowIndex, scoringStat, submission, allRows, playerSeas
       <div style={{ marginBottom:"8px" }}>
         <ResultCard playerName={submission.playerName} year={submission.year} team={submission.team} score={submission.score} statLabel={scoringStat.label} percentile={percentile} onClick={()=>setShowStats(!showStats)} />
         {showStats && matchedSeason && <StatsPanel ps={matchedSeason} />}
+        {showStats && <Top5Panel validAnswers={row.validAnswers} scoringStatKey={scoringStat.key} scoringStatLabel={scoringStat.label} />}
       </div>
     );
   }
   if (submission && !submission.correct) {
-    return <div style={{ marginBottom:"8px" }}><IncorrectCard playerName={submission.playerName} year={submission.year} reason={submission.reason} /></div>;
+    return (
+      <div style={{ marginBottom:"8px" }}>
+        <IncorrectCard playerName={submission.playerName} year={submission.year} reason={submission.reason} onClick={()=>setShowStats(!showStats)} showingTop5={showStats} />
+        {showStats && <Top5Panel validAnswers={row.validAnswers} scoringStatKey={scoringStat.key} scoringStatLabel={scoringStat.label} />}
+      </div>
+    );
   }
   return (
     <div style={{ marginBottom:"8px" }}>
@@ -274,6 +345,15 @@ function PuzzleRow({ row, rowIndex, scoringStat, submission, allRows, playerSeas
           <span>+</span><span style={{ fontSize:"9px",fontWeight:600,letterSpacing:"0.05em" }}>add player</span>
         </button>
       </div>
+      {retryMode && wrongRowAttempts?.length > 0 && (
+        <div style={{ display:"flex",gap:"6px",flexWrap:"wrap",padding:"5px 4px 0" }}>
+          {wrongRowAttempts.map((a, idx) => (
+            <span key={idx} style={{ fontSize:"11px",color:"rgba(239,68,68,0.7)",background:"rgba(239,68,68,0.08)",border:"1px solid rgba(239,68,68,0.2)",padding:"2px 8px",borderRadius:"4px" }}>
+              ✗ {a.playerName} ({a.year})
+            </span>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -285,6 +365,8 @@ export default function App() {
   const { data: playerSeasons, loading } = usePlayerData();
   const [puzzle, setPuzzle] = useState(null);
   const [submissions, setSubmissions] = useState({});
+  const [wrongAttempts, setWrongAttempts] = useState({});
+  const [retryMode, setRetryMode] = useState(false);
   const [activeRow, setActiveRow] = useState(null);
   const [showHowTo, setShowHowTo] = useState(false);
 
@@ -293,19 +375,28 @@ export default function App() {
   }, [playerSeasons]);
 
   const totalScore = Object.values(submissions).reduce((s,sub) => s + (sub.correct ? sub.score : 0), 0);
-  const totalGuesses = Object.keys(submissions).length;
+  const totalGuesses = Object.keys(submissions).length
+    + Object.values(wrongAttempts).reduce((s, arr) => s + arr.length, 0);
 
   const handlePlayerSelect = (playerName, year) => {
     if (activeRow === null || !puzzle) return;
     const row = puzzle.rows[activeRow];
     const ps = playerSeasons.find(p => p.name === playerName && p.year === year);
     if (!ps) {
-      setSubmissions(prev => ({...prev, [activeRow]: { playerName, year, correct:false, reason:"Player/year not found", score:0 }}));
+      if (retryMode) {
+        setWrongAttempts(prev => ({...prev, [activeRow]: [...(prev[activeRow]||[]), { playerName, year }]}));
+      } else {
+        setSubmissions(prev => ({...prev, [activeRow]: { playerName, year, correct:false, reason:"Player/year not found", score:0 }}));
+      }
       setActiveRow(null); return;
     }
     const failedCats = row.categories.filter(cat => !matchesCategory(ps, cat));
     if (failedCats.length > 0) {
-      setSubmissions(prev => ({...prev, [activeRow]: { playerName, year, correct:false, reason:`Does not match: ${failedCats.map(c=>c.label).join(", ")}`, score:0 }}));
+      if (retryMode) {
+        setWrongAttempts(prev => ({...prev, [activeRow]: [...(prev[activeRow]||[]), { playerName, year }]}));
+      } else {
+        setSubmissions(prev => ({...prev, [activeRow]: { playerName, year, correct:false, reason:`Does not match: ${failedCats.map(c=>c.label).join(", ")}`, score:0 }}));
+      }
       setActiveRow(null); return;
     }
     const score = ps[puzzle.scoringStat.key] || 0;
@@ -313,7 +404,7 @@ export default function App() {
     setActiveRow(null);
   };
 
-  const newGame = () => { setPuzzle(generatePuzzle(playerSeasons, 5)); setSubmissions({}); };
+  const newGame = () => { setPuzzle(generatePuzzle(playerSeasons, 5)); setSubmissions({}); setWrongAttempts({}); };
 
   if (loading) return <div style={{ minHeight:"100vh",background:"#111318",color:"#fff",display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"system-ui" }}>Loading data...</div>;
   if (!puzzle) return null;
@@ -321,7 +412,7 @@ export default function App() {
   return (
     <div style={{ minHeight:"100vh",background:"#111318",color:"#fff",fontFamily:"-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif" }}>
       <div style={{ maxWidth:"560px",margin:"0 auto",padding:"20px 16px" }}>
-        <div style={{ fontSize:"20px",fontWeight:800,letterSpacing:"-0.02em",marginBottom:"4px" }}>StatpadGame.com</div>
+        <div style={{ fontSize:"20px",fontWeight:800,letterSpacing:"-0.02em",marginBottom:"4px" }}>Statpad Game Clone</div>
 
         {/* Score Header */}
         <div style={{ display:"flex",alignItems:"flex-end",justifyContent:"space-between",padding:"16px 0",marginBottom:"12px" }}>
@@ -342,12 +433,16 @@ export default function App() {
         <div style={{ height:"1px",background:"rgba(255,255,255,0.08)",marginBottom:"12px" }} />
 
         {puzzle.rows.map((row,i) => (
-          <PuzzleRow key={`${puzzle.id}-${i}`} row={row} rowIndex={i} scoringStat={puzzle.scoringStat} submission={submissions[i]} allRows={puzzle.rows} playerSeasons={playerSeasons} onClickAdd={setActiveRow} />
+          <PuzzleRow key={`${puzzle.id}-${i}`} row={row} rowIndex={i} scoringStat={puzzle.scoringStat} submission={submissions[i]} allRows={puzzle.rows} playerSeasons={playerSeasons} onClickAdd={setActiveRow} retryMode={retryMode} wrongRowAttempts={wrongAttempts[i]} />
         ))}
 
-        <div style={{ display:"flex",alignItems:"center",justifyContent:"center",gap:"20px",marginTop:"24px",paddingBottom:"24px" }}>
+        <div style={{ display:"flex",alignItems:"center",justifyContent:"center",gap:"12px",marginTop:"24px",paddingBottom:"24px",flexWrap:"wrap" }}>
           <button onClick={newGame} style={{ padding:"10px 24px",borderRadius:"8px",border:"1px solid rgba(255,255,255,0.15)",background:"rgba(255,255,255,0.05)",color:"#fff",fontSize:"13px",fontWeight:600,cursor:"pointer" }}>New Game</button>
-          <button onClick={()=>setShowHowTo(!showHowTo)} style={{ padding:"10px 24px",borderRadius:"8px",border:"1px solid rgba(255,255,255,0.15)",background:"rgba(255,255,255,0.05)",color:"rgba(255,255,255,0.6)",fontSize:"13px",fontWeight:600,cursor:"pointer",display:"flex",alignItems:"center",gap:"6px" }}>
+          <button onClick={()=>setRetryMode(r=>!r)} style={{ padding:"10px 20px",borderRadius:"8px",border:`1px solid ${retryMode?"rgba(34,197,94,0.5)":"rgba(255,255,255,0.15)"}`,background:retryMode?"rgba(34,197,94,0.1)":"rgba(255,255,255,0.05)",color:retryMode?"#22c55e":"rgba(255,255,255,0.5)",fontSize:"13px",fontWeight:600,cursor:"pointer",display:"flex",alignItems:"center",gap:"6px" }}>
+            <span style={{ width:"14px",height:"14px",borderRadius:"50%",background:retryMode?"#22c55e":"rgba(255,255,255,0.2)",display:"inline-block",flexShrink:0 }} />
+            Retries {retryMode?"ON":"OFF"}
+          </button>
+          <button onClick={()=>setShowHowTo(!showHowTo)} style={{ padding:"10px 20px",borderRadius:"8px",border:"1px solid rgba(255,255,255,0.15)",background:"rgba(255,255,255,0.05)",color:"rgba(255,255,255,0.6)",fontSize:"13px",fontWeight:600,cursor:"pointer",display:"flex",alignItems:"center",gap:"6px" }}>
             <span style={{ width:"18px",height:"18px",borderRadius:"50%",border:"1.5px solid rgba(255,255,255,0.4)",display:"inline-flex",alignItems:"center",justifyContent:"center",fontSize:"11px",fontWeight:800 }}>?</span>HOW TO PLAY
           </button>
         </div>
@@ -367,7 +462,7 @@ export default function App() {
       </div>
 
       {activeRow !== null && (
-        <PlayerSearchModal playerSeasons={playerSeasons} onSelect={handlePlayerSelect} onClose={()=>setActiveRow(null)} />
+        <PlayerSearchModal key={activeRow} playerSeasons={playerSeasons} onSelect={handlePlayerSelect} onClose={()=>setActiveRow(null)} />
       )}
     </div>
   );
