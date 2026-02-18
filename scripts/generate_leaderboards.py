@@ -179,7 +179,7 @@ def main():
     parser.add_argument("--local-dir", default=None, dest="local_dir",
                         help="Path to a directory containing People.csv, Batting.csv, "
                              "Pitching.csv (skips all downloads). Get these files from "
-                             "http://seanlahman.com/baseball-archive/statistics/")
+                             "https://sabr.org/lahman-database/")
     args = parser.parse_args()
 
     try:
@@ -197,7 +197,7 @@ def main():
 
     # ── Load Lahman CSVs ───────────────────────────────────────────
     # The Chadwick Bureau GitHub repo (pybaseball's source) has been taken
-    # down. Use --local-dir to supply CSVs downloaded from Sean Lahman's site.
+    # down. Use --local-dir to supply CSVs downloaded from sabr.org/lahman-database/
     if args.local_dir:
         import os
         local = args.local_dir.rstrip("/")
@@ -208,8 +208,8 @@ def main():
                 raise FileNotFoundError(
                     f"Missing {path}\n"
                     f"Download the Lahman database from:\n"
-                    f"  http://www.seanlahman.com/baseball-archive/statistics/\n"
-                    f"(choose the 'comma-delimited version') then extract it and "
+                    f"  https://sabr.org/lahman-database/\n"
+                    f"(choose the CSV/comma-delimited version) then extract it and "
                     f"pass the extracted folder with --local-dir"
                 )
             return pd.read_csv(path, low_memory=False)
@@ -235,12 +235,12 @@ def main():
             sys.exit(1)
 
         LAHMAN_URLS = [
-            # Sean Lahman's canonical download (CSV version, current)
+            # SABR now hosts the Lahman database (https://sabr.org/lahman-database/)
+            "https://sabr.org/wp-content/uploads/lahman/lahmansbaseballdb.zip",
+            # Fallback: old seanlahman.com location (may no longer be maintained)
             "https://www.seanlahman.com/files/database/lahmansbaseballdb.zip",
-            # Versioned fallback
-            "https://www.seanlahman.com/files/database/lahmansbaseballdb-v2023.zip",
         ]
-        print("\n[1/4] Downloading Lahman database from seanlahman.com...")
+        print("\n[1/4] Downloading Lahman database from sabr.org...")
         zip_data = None
         for url in LAHMAN_URLS:
             try:
@@ -257,12 +257,12 @@ def main():
         if zip_data is None:
             print("\n" + "="*60)
             print("DOWNLOAD FAILED — manual setup required:")
-            print("  1. Go to http://www.seanlahman.com/baseball-archive/statistics/")
-            print("  2. Download the 'comma-delimited version' ZIP")
+            print("  1. Go to https://sabr.org/lahman-database/")
+            print("  2. Download the CSV (comma-delimited) ZIP")
             print("  3. Extract it to a folder, e.g. ~/Downloads/lahman/")
             print("  4. Re-run with:")
             print("       python scripts/generate_leaderboards.py \\")
-            print("         --local-dir ~/Downloads/lahman --end 2010 --top 150")
+            print("         --local-dir ~/Downloads/lahman --end 2025 --top 150")
             print("="*60)
             sys.exit(1)
 
