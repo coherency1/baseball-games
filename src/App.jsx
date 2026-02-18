@@ -61,6 +61,25 @@ function TeamLogo({ team, size = 40 }) {
   );
 }
 
+function MlbLogo({ size = 44 }) {
+  const [imgError, setImgError] = useState(false);
+  if (imgError) return (
+    <div style={{ width:size,height:size,borderRadius:Math.round(size*0.18),background:"#1e3a5f",display:"flex",alignItems:"center",justifyContent:"center",border:"2px solid rgba(255,255,255,0.1)",flexShrink:0 }}>
+      <span style={{ color:"#fff",fontSize:size*0.26,fontWeight:800 }}>MLB</span>
+    </div>
+  );
+  return (
+    <div style={{ width:size,height:size,borderRadius:Math.round(size*0.18),background:"rgba(255,255,255,0.93)",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,overflow:"hidden" }}>
+      <img
+        src="https://a.espncdn.com/i/teamlogos/leagues/500/mlb.png"
+        alt="MLB"
+        style={{ width:size*0.82,height:size*0.82,objectFit:"contain" }}
+        onError={() => setImgError(true)}
+      />
+    </div>
+  );
+}
+
 // -- Player Search Modal --
 function PlayerSearchModal({ playerSeasons, onSelect, onClose }) {
   const [query, setQuery] = useState("");
@@ -250,9 +269,7 @@ function CategoryDisplay({ category }) {
   if (type === CATEGORY_TYPES.ALL_TEAMS) {
     return (
       <div style={{ display:"flex",flexDirection:"column",alignItems:"center",gap:"4px",minWidth:"70px" }}>
-        <div style={{ width:44,height:44,borderRadius:"50%",background:"#1e3a5f",display:"flex",alignItems:"center",justifyContent:"center",border:"2px solid rgba(255,255,255,0.1)" }}>
-          <span style={{ color:"#fff",fontSize:12,fontWeight:800 }}>MLB</span>
-        </div>
+        <MlbLogo size={44} />
       </div>
     );
   }
@@ -290,7 +307,7 @@ function CategoryDisplay({ category }) {
 // -- Puzzle Row --
 function PuzzleRow({ row, rowIndex, scoringStat, submission, allRows, playerSeasons, onClickAdd, retryMode, wrongRowAttempts }) {
   const [showStats, setShowStats] = useState(false);
-  const percentile = submission?.correct ? computePercentile(submission.score, scoringStat.key, allRows) : 0;
+  const percentile = submission?.correct ? computePercentile(submission.score, scoringStat.key, row) : 0;
   const matchedSeason = submission?.correct ? playerSeasons.find(ps => ps.name===submission.playerName && ps.year===submission.year) : null;
 
   if (submission?.correct) {

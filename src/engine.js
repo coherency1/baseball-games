@@ -60,10 +60,26 @@ export function findMatchingSeasons(categories, playerSeasons) {
   return playerSeasons.filter(ps => categories.every(c => matchesCategory(ps, c)));
 }
 
-// Anti-double-jeopardy: check if two categories overlap
+// Anti-double-jeopardy: do two category values overlap (share possible player-seasons)?
 function catsOverlap(a, b) {
-  // Unify YEAR_EXACT and YEAR_RANGE into interval comparison so that e.g.
-  // YEAR_EXACT(2020) inside YEAR_RANGE([2018,2023]) is correctly detected as overlap.
+  // --- Col 1: TEAM / DIVISION / LEAGUE / ALL_TEAMS ---
+  // These need containment-aware comparison: ALL_TEAMS > LEAGUE > DIVISION > TEAM.
+  const COL1 = new Set([CATEGORY_TYPES.TEAM, CATEGORY_TYPES.DIVISION, CATEGORY_TYPES.LEAGUE, CATEGORY_TYPES.ALL_TEAMS]);
+  if (COL1.has(a.type) && COL1.has(b.type)) {
+    if (a.type === CATEGORY_TYPES.ALL_TEAMS || b.type === CATEGORY_TYPES.ALL_TEAMS) return true;
+    if (a.type === b.type) return a.value === b.value;
+    // Cross-type: extract whichever specific categories are present
+    const tv = [a, b].find(x => x.type === CATEGORY_TYPES.TEAM)?.value;
+    const dv = [a, b].find(x => x.type === CATEGORY_TYPES.DIVISION)?.value;
+    const lv = [a, b].find(x => x.type === CATEGORY_TYPES.LEAGUE)?.value;
+    if (tv && dv) return MLB_TEAMS[tv]?.division === dv;
+    if (tv && lv) return MLB_TEAMS[tv]?.league === lv;
+    if (dv && lv) return dv.startsWith(lv); // "AL East".startsWith("AL") → true
+    return false;
+  }
+
+  // --- Col 2: YEAR_RANGE / YEAR_EXACT ---
+  // Treat both as [lo, hi] intervals; overlap iff intervals intersect.
   const YEAR_TYPES = new Set([CATEGORY_TYPES.YEAR_EXACT, CATEGORY_TYPES.YEAR_RANGE]);
   if (YEAR_TYPES.has(a.type) && YEAR_TYPES.has(b.type)) {
     const aLo = a.type === CATEGORY_TYPES.YEAR_EXACT ? a.value : a.value[0];
@@ -73,41 +89,32 @@ function catsOverlap(a, b) {
     return aLo <= bHi && bLo <= aHi;
   }
 
+  // Different column types never share player-seasons.
   if (a.type !== b.type) return false;
 
-  if (a.type === CATEGORY_TYPES.TEAM)     return a.value === b.value;
-  if (a.type === CATEGORY_TYPES.DIVISION) return a.value === b.value;
-  if (a.type === CATEGORY_TYPES.LEAGUE)   return a.value === b.value;
-  if (a.type === CATEGORY_TYPES.BATS)     return a.value === b.value;
+  // --- Col 3: BATS ---
+  if (a.type === CATEGORY_TYPES.BATS) return a.value === b.value;
 
+  // --- Col 3: POSITION ---
   if (a.type === CATEGORY_TYPES.POSITION) {
-    // DH and UTL are "any" categories. They only overlap with each other — not
-    // with specific positions — so a DH row and an IF row can coexist (the
-    // team+year constraints already prevent trivial same-player double-jeopardy).
+    // DH / UTL are "any" — only overlap with each other so rows can share
+    // a DH row alongside an IF/OF row without being blocked.
     const ANY_POS = new Set(["DH", "UTL"]);
     const aIsAny = ANY_POS.has(a.value), bIsAny = ANY_POS.has(b.value);
     if (aIsAny && bIsAny) return true;
     if (aIsAny || bIsAny) return false;
-
-    // IF expands to {1B,2B,3B,SS}; OF expands to {LF,CF,RF,OF}.
-    // Use set intersection so IF vs 2B and OF vs LF are correctly detected.
+    // Expand IF → {1B,2B,3B,SS} and OF → {OF,LF,CF,RF}, then intersect.
     const IF_SET = new Set(["1B", "2B", "3B", "SS"]);
     const OF_SET = new Set(["OF", "LF", "CF", "RF"]);
-    const expand = v => {
-      if (v === "IF") return IF_SET;
-      if (v === "OF") return OF_SET;
-      return new Set([v]);
-    };
-    const aSet = expand(a.value);
-    const bSet = expand(b.value);
+    const expand = v => v === "IF" ? IF_SET : v === "OF" ? OF_SET : new Set([v]);
+    const aSet = expand(a.value), bSet = expand(b.value);
     for (const p of aSet) { if (bSet.has(p)) return true; }
     return false;
   }
 
-  // Two thresholds on the same stat always overlap (both define [min, ∞) on the same field).
-  if (a.type === CATEGORY_TYPES.STAT_THRESHOLD) {
-    return a.value.stat === b.value.stat;
-  }
+  // --- Col 3: STAT_THRESHOLD ---
+  // Two thresholds on the same stat share the same player population.
+  if (a.type === CATEGORY_TYPES.STAT_THRESHOLD) return a.value.stat === b.value.stat;
 
   return false;
 }
@@ -139,22 +146,28 @@ function genCol1(availableTeams) {
 
 function genCol2(teamSelected = false) {
   // Predetermined probability distribution (all weights sum to 100):
-  //   2025 exact        15%  │  2021-2025 range   20%
-  //   2024 exact        15%  │  2008-2014 exact    3%  (÷7 per year)
-  //   2010-2020 range   15%  │  2015-2017 exact    5%  (÷3 per year)
+  //   2025 exact        10%  │  2021-2025 range   20%
+  //   2024 exact        10%  │  2008-2016 range    5%
+  //   2010-2020 range   15%  │  2017-2025 range    5%
+  //                          │  2008-2014 exact    3%  (÷7 per year)
+  //                          │  2015-2017 exact    5%  (÷3 per year)
   //                          │  2018-2020 exact   10%  (÷3 per year)
   //                          │  2021-2023 exact   17%  (÷3 per year)
   const r = Math.random() * 100;
 
   let result;
-  if (r < 15) {
+  if (r < 10) {
     result = { type: CATEGORY_TYPES.YEAR_EXACT, value: 2025, label: "2025" };
-  } else if (r < 30) {
+  } else if (r < 20) {
     result = { type: CATEGORY_TYPES.YEAR_EXACT, value: 2024, label: "2024" };
-  } else if (r < 45) {
+  } else if (r < 35) {
     result = { type: CATEGORY_TYPES.YEAR_RANGE, value: [2010, 2020], label: "2010 to 2020" };
-  } else if (r < 65) {
+  } else if (r < 55) {
     result = { type: CATEGORY_TYPES.YEAR_RANGE, value: [2021, 2025], label: "2021 to 2025" };
+  } else if (r < 60) {
+    result = { type: CATEGORY_TYPES.YEAR_RANGE, value: [2008, 2016], label: "2008 to 2016" };
+  } else if (r < 65) {
+    result = { type: CATEGORY_TYPES.YEAR_RANGE, value: [2017, 2025], label: "2017 to 2025" };
   } else if (r < 68) {
     // 2008-2014: 3% across 7 years
     const yrs = [2008, 2009, 2010, 2011, 2012, 2013, 2014];
@@ -178,11 +191,13 @@ function genCol2(teamSelected = false) {
   }
 
   // Single-team constraint: exact years before 2024 must fall back to a range.
-  // Redistribute proportionally between the two defined ranges (15% and 20%).
+  // Redistribute proportionally among all 4 ranges (weights 15:20:5:5 → total 45).
   if (teamSelected && result.type === CATEGORY_TYPES.YEAR_EXACT && result.value < 2024) {
-    return Math.random() < (15 / 35)
-      ? { type: CATEGORY_TYPES.YEAR_RANGE, value: [2010, 2020], label: "2010 to 2020" }
-      : { type: CATEGORY_TYPES.YEAR_RANGE, value: [2021, 2025], label: "2021 to 2025" };
+    const rr = Math.random() * 45;
+    if (rr < 15) return { type: CATEGORY_TYPES.YEAR_RANGE, value: [2010, 2020], label: "2010 to 2020" };
+    if (rr < 35) return { type: CATEGORY_TYPES.YEAR_RANGE, value: [2021, 2025], label: "2021 to 2025" };
+    if (rr < 40) return { type: CATEGORY_TYPES.YEAR_RANGE, value: [2008, 2016], label: "2008 to 2016" };
+    return { type: CATEGORY_TYPES.YEAR_RANGE, value: [2017, 2025], label: "2017 to 2025" };
   }
 
   return result;
@@ -225,7 +240,16 @@ export function generatePuzzle(playerSeasons, numRows = 5) {
   const scoringStat = SCORING_STATS[Math.floor(Math.random() * SCORING_STATS.length)];
   const availableTeams = getAvailableTeams(hitterSeasons);
   const rows = [];
-  const allUsedCats = [];
+  // Track accepted rows as category triples for AND-based overlap detection.
+  // A new row is only rejected if a player-season could satisfy BOTH it AND an
+  // existing row simultaneously (all three columns must overlap at once).
+  const usedRows = [];
+
+  // Helper: returns true iff the same player-season could satisfy both rows.
+  const rowsOverlap = (existing, cats) =>
+    catsOverlap(existing[0], cats[0]) &&
+    catsOverlap(existing[1], cats[1]) &&
+    catsOverlap(existing[2], cats[2]);
 
   for (let i = 0; i < numRows; i++) {
     let bestRow = null;
@@ -237,11 +261,8 @@ export function generatePuzzle(playerSeasons, numRows = 5) {
       const c3 = genCol3();
       const cats = [c1, c2, c3];
 
-      // Anti-double-jeopardy check
-      const hasOverlap = allUsedCats.some(existing =>
-        cats.some(cat => catsOverlap(existing, cat))
-      );
-      if (hasOverlap) continue;
+      // Reject only if a player-season could satisfy this AND an existing row
+      if (usedRows.some(existing => rowsOverlap(existing, cats))) continue;
 
       const matches = findMatchingSeasons(cats, hitterSeasons);
       if (matches.length >= 3 && matches.length <= 15) {
@@ -258,10 +279,7 @@ export function generatePuzzle(playerSeasons, numRows = 5) {
           genCol2(),
           genCol3(),
         ];
-        const hasOverlap = allUsedCats.some(existing =>
-          cats.some(cat => catsOverlap(existing, cat))
-        );
-        if (hasOverlap) continue;
+        if (usedRows.some(existing => rowsOverlap(existing, cats))) continue;
         const matches = findMatchingSeasons(cats, hitterSeasons);
         if (matches.length >= 3) {
           bestRow = { categories: cats, validAnswers: matches };
@@ -282,25 +300,23 @@ export function generatePuzzle(playerSeasons, numRows = 5) {
     }
 
     rows.push(bestRow);
-    allUsedCats.push(...bestRow.categories);
+    usedRows.push(bestRow.categories);
   }
 
   return { scoringStat, rows, id: Date.now().toString(36) };
 }
 
-// Percentile computation across all valid answers
-export function computePercentile(score, statKey, allRows) {
-  const allScores = [];
-  allRows.forEach(row => {
-    row.validAnswers.forEach(ps => {
-      const val = ps[statKey] || 0;
-      if (val > 0) allScores.push(val);
-    });
-  });
-  if (allScores.length === 0) return 50;
-  allScores.sort((a, b) => a - b);
-  const rank = allScores.filter(s => s <= score).length;
-  return Math.round((rank / allScores.length) * 100);
+// Percentile within this row's valid answers: highest answer = 100th percentile.
+export function computePercentile(score, statKey, row) {
+  const scores = row.validAnswers
+    .map(ps => ps[statKey] || 0)
+    .filter(v => v > 0)
+    .sort((a, b) => a - b);
+  if (scores.length === 0) return 50;
+  const max = scores[scores.length - 1];
+  if (max === 0) return 50;
+  // Scale so the highest answer is the 100th percentile
+  return Math.min(100, Math.round((score / max) * 100));
 }
 
 export function getTier(pct) {
