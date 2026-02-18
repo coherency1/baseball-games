@@ -4,13 +4,13 @@ generate_leaderboards.py - All-Time MLB Leaderboard Data Generator
 ====================================================================
 Generates public/leaderboard_data.json for the Pinpoint Challenge game.
 
-Uses the Lahman database (via pybaseball) for career batting/pitching stats
-and bwar_bat() for career WAR. These use static CSV downloads and are
-reliable for all historical data back to 1871, unlike the FanGraphs
-legacy endpoint which only works for recent seasons.
+Uses the Chadwick Bureau baseball databank (Lahman-compatible CSVs) downloaded
+directly from GitHub raw URLs — no pybaseball Lahman ZIP dependency needed.
+WAR is fetched from Baseball Reference via pybaseball.bwar_bat() with a
+graceful fallback if that fails.
 
 INSTALL:
-    pip install pybaseball pandas
+    pip install pandas requests pybaseball
 
 RUN:
     python scripts/generate_leaderboards.py
@@ -38,10 +38,10 @@ OUTPUT FORMAT:
     }
 
 DATA SOURCES:
-- lahman.batting()  → Lahman Batting.csv  (HR, RBI, H, BB, AB, HBP, SF, SH)
-- lahman.pitching() → Lahman Pitching.csv (IPouts, SO, BB)
-- lahman.people()   → Lahman People.csv   (playerID → "First Last" name)
-- bwar_bat()        → Baseball Reference WAR CSV (career WAR by player name)
+- Chadwick Bureau Batting.csv  (HR, RBI, H, BB, AB, HBP, SF, SH)
+- Chadwick Bureau Pitching.csv (IPouts, SO, BB)
+- Chadwick Bureau People.csv   (playerID → "First Last" name)
+- bwar_bat()                   → Baseball Reference WAR CSV (career WAR)
 
 CATEGORIES (8 total, dropping wRC+ which requires FanGraphs):
   Batting counting: HR, RBI, H, BB  — no minimum
@@ -179,12 +179,16 @@ def main():
     args = parser.parse_args()
 
     try:
-        from pybaseball import lahman
-        from pybaseball.league_batting_stats import bwar_bat
         import pandas as pd
     except ImportError:
-        print("ERROR: Run:  pip install pybaseball pandas")
+        print("ERROR: Run:  pip install pandas")
         sys.exit(1)
+
+    # Chadwick Bureau baseball databank — raw CSV URLs (no ZIP download needed)
+    BASE = "https://raw.githubusercontent.com/chadwickbureau/baseballdatabank/master/core"
+    PEOPLE_URL   = f"{BASE}/People.csv"
+    BATTING_URL  = f"{BASE}/Batting.csv"
+    PITCHING_URL = f"{BASE}/Pitching.csv"
 
     era_label = f"All-Time ({args.start}–{args.end})"
 
@@ -194,14 +198,16 @@ def main():
     print("=" * 60)
 
     # ── People (name map) ──────────────────────────────────────────
-    print("\n[1/4] Loading Lahman People.csv...")
-    people_df = lahman.people()
+    print("\n[1/4] Loading People.csv from Chadwick Bureau GitHub...")
+    print(f"  {PEOPLE_URL}")
+    people_df = pd.read_csv(PEOPLE_URL, low_memory=False)
     name_map  = build_name_map(people_df)
     print(f"  {len(name_map)} players in name map")
 
     # ── Batting ───────────────────────────────────────────────────
-    print("\n[2/4] Loading Lahman Batting.csv...")
-    bat_df = lahman.batting()
+    print("\n[2/4] Loading Batting.csv from Chadwick Bureau GitHub...")
+    print(f"  {BATTING_URL}")
+    bat_df = pd.read_csv(BATTING_URL, low_memory=False)
     bat_df = bat_df[(bat_df["yearID"] >= args.start) & (bat_df["yearID"] <= args.end)]
     print(f"  {len(bat_df)} batting rows ({bat_df['yearID'].nunique()} seasons)")
     print("  Aggregating career batting totals...")
@@ -209,17 +215,19 @@ def main():
     print(f"  {len(bat)} unique batters")
 
     # ── Pitching ──────────────────────────────────────────────────
-    print("\n[3/4] Loading Lahman Pitching.csv...")
-    pit_df = lahman.pitching()
+    print("\n[3/4] Loading Pitching.csv from Chadwick Bureau GitHub...")
+    print(f"  {PITCHING_URL}")
+    pit_df = pd.read_csv(PITCHING_URL, low_memory=False)
     pit_df = pit_df[(pit_df["yearID"] >= args.start) & (pit_df["yearID"] <= args.end)]
     print(f"  {len(pit_df)} pitching rows ({pit_df['yearID'].nunique()} seasons)")
     print("  Aggregating career pitching totals...")
     pit = aggregate_lahman_pitching(pit_df, name_map)
     print(f"  {len(pit)} unique pitchers")
 
-    # ── WAR (Baseball Reference) ───────────────────────────────────
-    print("\n[4/4] Loading bwar_bat() from Baseball Reference...")
+    # ── WAR (Baseball Reference via pybaseball) ────────────────────
+    print("\n[4/4] Loading WAR from Baseball Reference (pybaseball.bwar_bat)...")
     try:
+        from pybaseball.league_batting_stats import bwar_bat
         war_df = bwar_bat()
         # bwar_bat column is 'year_ID' (not 'yearID')
         year_col = "year_ID" if "year_ID" in war_df.columns else "yearID"
