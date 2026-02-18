@@ -84,20 +84,62 @@ def col_name(df, *candidates):
     return None
 
 
-def load_batting(start_year, end_year):
+def fetch_with_retry(fn, start, end, max_retries=3):
+    """Call fn(start, end, qual=0) with exponential backoff on failure."""
+    import time
+    for attempt in range(max_retries):
+        try:
+            return fn(start, end, qual=0)
+        except Exception as e:
+            if attempt < max_retries - 1:
+                wait = 2 ** attempt  # 1s, 2s, 4s
+                print(f"    retry {attempt+1}/{max_retries-1} after {wait}s ({e})", flush=True)
+                time.sleep(wait)
+            else:
+                raise
+
+
+def load_in_chunks(fn, label, start_year, end_year, chunk_size=15):
+    """
+    Pull data from FanGraphs in year-range chunks to avoid HTTP 524 timeouts.
+    Each chunk covers `chunk_size` seasons. Results are concatenated into one DataFrame.
+    """
+    import pandas as pd
+
+    chunks = []
+    year = start_year
+    total_chunks = ((end_year - start_year) // chunk_size) + 1
+
+    while year <= end_year:
+        chunk_end = min(year + chunk_size - 1, end_year)
+        pct = int(100 * (year - start_year) / max(1, end_year - start_year))
+        print(f"  [{pct:3d}%] {label} {year}-{chunk_end}...", end=" ", flush=True)
+        try:
+            chunk_df = fetch_with_retry(fn, year, chunk_end)
+            print(f"{len(chunk_df)} rows", flush=True)
+            chunks.append(chunk_df)
+        except Exception as e:
+            print(f"SKIP (error: {e})", flush=True)
+        year = chunk_end + 1
+
+    if not chunks:
+        raise RuntimeError(f"All chunks failed for {label}")
+
+    df = pd.concat(chunks, ignore_index=True)
+    print(f"  Total: {len(df)} rows across {df['Season'].nunique()} seasons")
+    return df
+
+
+def load_batting(start_year, end_year, chunk_size=15):
     from pybaseball import batting_stats
-    print(f"  Fetching batting stats {start_year}-{end_year} (qual=0)...", flush=True)
-    df = batting_stats(start_year, end_year, qual=0)
-    print(f"  Got {len(df)} rows across {df['Season'].nunique()} seasons")
-    return df
+    print(f"  Fetching batting stats {start_year}-{end_year} in {chunk_size}-year chunks...", flush=True)
+    return load_in_chunks(batting_stats, "batting", start_year, end_year, chunk_size)
 
 
-def load_pitching(start_year, end_year):
+def load_pitching(start_year, end_year, chunk_size=15):
     from pybaseball import pitching_stats
-    print(f"  Fetching pitching stats {start_year}-{end_year} (qual=0)...", flush=True)
-    df = pitching_stats(start_year, end_year, qual=0)
-    print(f"  Got {len(df)} rows across {df['Season'].nunique()} seasons")
-    return df
+    print(f"  Fetching pitching stats {start_year}-{end_year} in {chunk_size}-year chunks...", flush=True)
+    return load_in_chunks(pitching_stats, "pitching", start_year, end_year, chunk_size)
 
 
 def aggregate_batting(df):
@@ -232,6 +274,8 @@ def main():
     parser.add_argument("--end",    type=int, default=2025)
     parser.add_argument("--top",    type=int, default=150,
                         help="Players per category (default: 150)")
+    parser.add_argument("--chunk",  type=int, default=15,
+                        help="Years per FanGraphs request (default: 15, reduce if timeouts persist)")
     args = parser.parse_args()
 
     try:
@@ -245,19 +289,19 @@ def main():
 
     print("=" * 60)
     print("Pinpoint Challenge — Leaderboard Data Generator")
-    print(f"Range: {args.start}-{args.end}  |  Top {args.top} per category")
+    print(f"Range: {args.start}-{args.end}  |  Top {args.top} per category  |  Chunk size: {args.chunk}yr")
     print("=" * 60)
 
     # ── Batting ───────────────────────────────────────────────────
     print("\n[1/2] Loading batting data...")
-    bat_df = load_batting(args.start, args.end)
+    bat_df = load_batting(args.start, args.end, chunk_size=args.chunk)
     print("  Aggregating career batting totals...")
     bat = aggregate_batting(bat_df)
     print(f"  {len(bat)} unique batters")
 
     # ── Pitching ──────────────────────────────────────────────────
     print("\n[2/2] Loading pitching data...")
-    pit_df = load_pitching(args.start, args.end)
+    pit_df = load_pitching(args.start, args.end, chunk_size=args.chunk)
     print("  Aggregating career pitching totals...")
     pit = aggregate_pitching(pit_df)
     print(f"  {len(pit)} unique pitchers")
