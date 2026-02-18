@@ -37,10 +37,16 @@ function usePlayerData() {
 // =====================================================================
 
 function TeamLogo({ team, size = 40 }) {
+  const [imgError, setImgError] = useState(false);
   const info = MLB_TEAMS[team];
   if (!info) return (
     <div style={{ width:size,height:size,borderRadius:"50%",background:"#333",display:"flex",alignItems:"center",justifyContent:"center",border:"2px solid rgba(255,255,255,0.1)",flexShrink:0 }}>
       <span style={{ color:"#888",fontSize:size*0.28,fontWeight:800 }}>MLB</span>
+    </div>
+  );
+  if (imgError) return (
+    <div style={{ width:size,height:size,borderRadius:"50%",background:info.color,display:"flex",alignItems:"center",justifyContent:"center",border:"2px solid rgba(255,255,255,0.15)",flexShrink:0 }}>
+      <span style={{ color:"#fff",fontSize:size*0.30,fontWeight:800,textShadow:"0 1px 2px rgba(0,0,0,0.5)",letterSpacing:"-0.03em" }}>{team}</span>
     </div>
   );
   return (
@@ -48,7 +54,7 @@ function TeamLogo({ team, size = 40 }) {
       src={getTeamLogoUrl(team)}
       alt={info.name}
       style={{ width:size,height:size,objectFit:"contain",flexShrink:0 }}
-      onError={e => { e.target.style.display="none"; }}
+      onError={() => setImgError(true)}
     />
   );
 }
@@ -71,9 +77,10 @@ function PlayerSearchModal({ playerSeasons, onSelect, onClose }) {
     return Object.values(map);
   }, [playerSeasons]);
 
-  const filtered = query.length >= 2
-    ? playerIndex.filter(p => p.name.toLowerCase().includes(query.toLowerCase())).slice(0,8)
+  const allFiltered = query.length >= 2
+    ? playerIndex.filter(p => p.name.toLowerCase().includes(query.toLowerCase()))
     : [];
+  const filtered = allFiltered.slice(0, 15);
 
   const playerYears = selectedPlayer
     ? [...new Set(playerSeasons.filter(ps => ps.name === selectedPlayer).map(ps => ps.year))].sort((a,b)=>b-a)
@@ -101,7 +108,8 @@ function PlayerSearchModal({ playerSeasons, onSelect, onClose }) {
                 <span style={{ color:"rgba(255,255,255,0.35)",fontSize:"13px" }}>{p.minYear} - {p.maxYear}</span>
               </div>
             ))}
-            {query.length>=2 && filtered.length===0 && <div style={{ padding:"20px",textAlign:"center",color:"rgba(255,255,255,0.3)",fontSize:"14px" }}>No players found</div>}
+            {query.length>=2 && allFiltered.length===0 && <div style={{ padding:"20px",textAlign:"center",color:"rgba(255,255,255,0.3)",fontSize:"14px" }}>No players found</div>}
+            {allFiltered.length > 15 && <div style={{ padding:"10px 20px",textAlign:"center",color:"rgba(255,255,255,0.25)",fontSize:"12px",borderTop:"1px solid rgba(255,255,255,0.05)" }}>Showing 15 of {allFiltered.length} — type more to narrow results</div>}
           </div>
         </>) : (<>
           <div style={{ padding:"16px 20px",borderBottom:"1px solid rgba(255,255,255,0.08)" }}>
@@ -367,7 +375,7 @@ export default function App() {
       </div>
 
       {activeRow !== null && (
-        <PlayerSearchModal playerSeasons={playerSeasons} onSelect={handlePlayerSelect} onClose={()=>setActiveRow(null)} />
+        <PlayerSearchModal key={activeRow} playerSeasons={playerSeasons} onSelect={handlePlayerSelect} onClose={()=>setActiveRow(null)} />
       )}
     </div>
   );

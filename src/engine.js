@@ -55,14 +55,39 @@ export function findMatchingSeasons(categories, playerSeasons) {
 
 // Anti-double-jeopardy: check if two categories overlap
 function catsOverlap(a, b) {
+  // Unify YEAR_EXACT and YEAR_RANGE into interval comparison so that e.g.
+  // YEAR_EXACT(2020) inside YEAR_RANGE([2018,2023]) is correctly detected as overlap.
+  const YEAR_TYPES = new Set([CATEGORY_TYPES.YEAR_EXACT, CATEGORY_TYPES.YEAR_RANGE]);
+  if (YEAR_TYPES.has(a.type) && YEAR_TYPES.has(b.type)) {
+    const aLo = a.type === CATEGORY_TYPES.YEAR_EXACT ? a.value : a.value[0];
+    const aHi = a.type === CATEGORY_TYPES.YEAR_EXACT ? a.value : a.value[1];
+    const bLo = b.type === CATEGORY_TYPES.YEAR_EXACT ? b.value : b.value[0];
+    const bHi = b.type === CATEGORY_TYPES.YEAR_EXACT ? b.value : b.value[1];
+    return aLo <= bHi && bLo <= aHi;
+  }
+
   if (a.type !== b.type) return false;
-  if (a.type === CATEGORY_TYPES.TEAM) return a.value === b.value;
+
+  if (a.type === CATEGORY_TYPES.TEAM)     return a.value === b.value;
   if (a.type === CATEGORY_TYPES.DIVISION) return a.value === b.value;
-  if (a.type === CATEGORY_TYPES.LEAGUE) return a.value === b.value;
-  if (a.type === CATEGORY_TYPES.YEAR_EXACT) return a.value === b.value;
-  if (a.type === CATEGORY_TYPES.YEAR_RANGE) return a.value[0] <= b.value[1] && b.value[0] <= a.value[1];
-  if (a.type === CATEGORY_TYPES.POSITION) return a.value === b.value;
-  if (a.type === CATEGORY_TYPES.BATS) return a.value === b.value;
+  if (a.type === CATEGORY_TYPES.LEAGUE)   return a.value === b.value;
+  if (a.type === CATEGORY_TYPES.BATS)     return a.value === b.value;
+
+  // IF expands to {1B,2B,3B,SS} — use set intersection so IF vs 2B is detected.
+  if (a.type === CATEGORY_TYPES.POSITION) {
+    const IF_SET = new Set(["1B", "2B", "3B", "SS"]);
+    const expand = v => (v === "IF" ? IF_SET : new Set([v]));
+    const aSet = expand(a.value);
+    const bSet = expand(b.value);
+    for (const p of aSet) { if (bSet.has(p)) return true; }
+    return false;
+  }
+
+  // Two thresholds on the same stat always overlap (both define [min, ∞) on the same field).
+  if (a.type === CATEGORY_TYPES.STAT_THRESHOLD) {
+    return a.value.stat === b.value.stat;
+  }
+
   return false;
 }
 
@@ -130,13 +155,20 @@ function genCol3() {
 }
 
 export function generatePuzzle(playerSeasons, numRows = 5) {
+  // Exclude pitchers: their batting stats are outliers that pollute answer pools
+  // and skew scoring distributions. The full playerSeasons is still used by the
+  // UI for player search so pitchers remain searchable.
+  const hitterSeasons = playerSeasons.filter(ps => ps.pos !== "P");
+
   const scoringStat = SCORING_STATS[Math.floor(Math.random() * SCORING_STATS.length)];
-  const availableTeams = getAvailableTeams(playerSeasons);
+  const availableTeams = getAvailableTeams(hitterSeasons);
   const rows = [];
   const allUsedCats = [];
 
   for (let i = 0; i < numRows; i++) {
     let bestRow = null;
+
+    // Primary loop: 150 attempts at a valid, non-overlapping row
     for (let attempt = 0; attempt < 150; attempt++) {
       const c1 = genCol1(availableTeams);
       const c2 = genCol2();
@@ -149,21 +181,44 @@ export function generatePuzzle(playerSeasons, numRows = 5) {
       );
       if (hasOverlap) continue;
 
-      const matches = findMatchingSeasons(cats, playerSeasons);
-      if (matches.length >= 1 && matches.length <= 25) {
+      const matches = findMatchingSeasons(cats, hitterSeasons);
+      if (matches.length >= 3 && matches.length <= 15) {
         bestRow = { categories: cats, validAnswers: matches };
         break;
       }
     }
+
+    // Secondary fallback: ALL_TEAMS + random col2/col3, up to 30 attempts
     if (!bestRow) {
-      // Fallback: broad puzzle
+      for (let fb = 0; fb < 30; fb++) {
+        const cats = [
+          { type: CATEGORY_TYPES.ALL_TEAMS, value: "all", label: "MLB" },
+          genCol2(),
+          genCol3(),
+        ];
+        const hasOverlap = allUsedCats.some(existing =>
+          cats.some(cat => catsOverlap(existing, cat))
+        );
+        if (hasOverlap) continue;
+        const matches = findMatchingSeasons(cats, hitterSeasons);
+        if (matches.length >= 3) {
+          bestRow = { categories: cats, validAnswers: matches };
+          break;
+        }
+      }
+    }
+
+    // Last-resort hard fallback: guaranteed solvable, overlap check skipped.
+    // Practically unreachable (requires all 180 attempts to fail).
+    if (!bestRow) {
       const cats = [
         { type: CATEGORY_TYPES.ALL_TEAMS, value: "all", label: "MLB" },
-        genCol2(),
-        genCol3(),
+        { type: CATEGORY_TYPES.YEAR_RANGE, value: [2010, 2020], label: "2010 to 2020" },
+        { type: CATEGORY_TYPES.BATS, value: "R", label: "Right" },
       ];
-      bestRow = { categories: cats, validAnswers: findMatchingSeasons(cats, playerSeasons) };
+      bestRow = { categories: cats, validAnswers: findMatchingSeasons(cats, hitterSeasons) };
     }
+
     rows.push(bestRow);
     allUsedCats.push(...bestRow.categories);
   }
