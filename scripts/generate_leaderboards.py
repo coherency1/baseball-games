@@ -185,10 +185,23 @@ def main():
         sys.exit(1)
 
     # Chadwick Bureau baseball databank — raw CSV URLs (no ZIP download needed)
-    BASE = "https://raw.githubusercontent.com/chadwickbureau/baseballdatabank/master/core"
-    PEOPLE_URL   = f"{BASE}/People.csv"
-    BATTING_URL  = f"{BASE}/Batting.csv"
-    PITCHING_URL = f"{BASE}/Pitching.csv"
+    # Try 'main' branch first (repo migrated from 'master'), fall back to 'master'
+    REPO = "https://raw.githubusercontent.com/chadwickbureau/baseballdatabank"
+    def chadwick_url(filename):
+        import urllib.request
+        for branch in ("main", "master"):
+            url = f"{REPO}/{branch}/core/{filename}"
+            try:
+                urllib.request.urlopen(url, timeout=5)
+                return url
+            except Exception:
+                continue
+        raise RuntimeError(f"Could not reach Chadwick Bureau GitHub for {filename}. Check your internet connection.")
+
+    PEOPLE_URL   = chadwick_url("People.csv")
+    BATTING_URL  = chadwick_url("Batting.csv")
+    PITCHING_URL = chadwick_url("Pitching.csv")
+    print(f"  Using branch: {PEOPLE_URL.split('/')[7]}")
 
     era_label = f"All-Time ({args.start}–{args.end})"
 
