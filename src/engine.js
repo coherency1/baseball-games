@@ -203,28 +203,34 @@ function genCol2(teamSelected = false) {
   return result;
 }
 
-function genCol3() {
-  // Column 3: position (35%), bats (25%), stat threshold (40%)
+function genCol3(hasBatsData = true) {
+  // Column 3 weights depend on whether the dataset has real bat-side data:
+  //   Normal  (hasBatsData): position 35%, bats 25%, stat threshold 40%
+  //   Fallback (!hasBatsData): position 47%, stat threshold 53%
+  //   (BATS rows are excluded when all players defaulted to "R" so the
+  //    engine doesn't waste attempts on categories with zero valid answers.)
   const r = Math.random();
-  if (r < 0.35) {
-    // DH and UTL are "any position" — intentionally broad, used as easier rows.
+  const posCutoff  = hasBatsData ? 0.35 : 0.47;
+  const batsCutoff = hasBatsData ? 0.60 : -1;   // -1 means never generate BATS
+
+  if (r < posCutoff) {
     const positions = ["OF","IF","1B","2B","3B","SS","C","DH","UTL"];
     const p = positions[Math.floor(Math.random() * positions.length)];
     const labels = { OF:"Outfield", IF:"Infield", C:"Catcher", DH:"DH", UTL:"Utility", "1B":"1B", "2B":"2B", "3B":"3B", SS:"SS" };
     return { type: CATEGORY_TYPES.POSITION, value: p, label: labels[p] || p };
   }
-  if (r < 0.60) {
+  if (r < batsCutoff) {
     const b = ["L","R","S"][Math.floor(Math.random() * 3)];
     const labels = { L:"Left", R:"Right", S:"Switch" };
     return { type: CATEGORY_TYPES.BATS, value: b, label: labels[b], sublabel: "BATS" };
   }
   const opts = [
-    { stat:"HR", min:30, label:"30+ HR" },
-    { stat:"HR", min:40, label:"40+ HR" },
-    { stat:"RBI", min:100, label:"100+ RBI" },
-    { stat:"SB", min:20, label:"20+ SB" },
-    { stat:"SB", min:40, label:"40+ SB" },
-    { stat:"H", min:180, label:"180+ Hits" },
+    { stat:"HR",  min:30,   label:"30+ HR" },
+    { stat:"HR",  min:40,   label:"40+ HR" },
+    { stat:"RBI", min:100,  label:"100+ RBI" },
+    { stat:"SB",  min:20,   label:"20+ SB" },
+    { stat:"SB",  min:40,   label:"40+ SB" },
+    { stat:"H",   min:180,  label:"180+ Hits" },
     { stat:"AVG", min:.300, label:".300+ AVG" },
   ];
   const o = opts[Math.floor(Math.random() * opts.length)];
@@ -236,6 +242,13 @@ export function generatePuzzle(playerSeasons, numRows = 5) {
   // and skew scoring distributions. The full playerSeasons is still used by the
   // UI for player search so pitchers remain searchable.
   const hitterSeasons = playerSeasons.filter(ps => ps.pos !== "P");
+
+  // Detect whether the dataset has real bat-side data.
+  // If every hitter has bats=null (normalised from an all-'R' dataset by the
+  // data loader), generating BATS rows is pointless — they'd all have 0 valid
+  // answers. Skip them and redistribute that probability weight to position /
+  // stat-threshold rows instead.
+  const hasBatsData = hitterSeasons.some(ps => ps.bats === "L" || ps.bats === "S");
 
   const scoringStat = SCORING_STATS[Math.floor(Math.random() * SCORING_STATS.length)];
   const availableTeams = getAvailableTeams(hitterSeasons);
@@ -258,7 +271,7 @@ export function generatePuzzle(playerSeasons, numRows = 5) {
     for (let attempt = 0; attempt < 150; attempt++) {
       const c1 = genCol1(availableTeams);
       const c2 = genCol2(c1.type === CATEGORY_TYPES.TEAM);
-      const c3 = genCol3();
+      const c3 = genCol3(hasBatsData);
       const cats = [c1, c2, c3];
 
       // Reject only if a player-season could satisfy this AND an existing row
@@ -277,7 +290,7 @@ export function generatePuzzle(playerSeasons, numRows = 5) {
         const cats = [
           { type: CATEGORY_TYPES.ALL_TEAMS, value: "all", label: "MLB" },
           genCol2(),
-          genCol3(),
+          genCol3(hasBatsData),
         ];
         if (usedRows.some(existing => rowsOverlap(existing, cats))) continue;
         const matches = findMatchingSeasons(cats, hitterSeasons);

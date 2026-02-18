@@ -11,7 +11,27 @@ import {
 // =====================================================================
 // Loads from /statpad_data.json in the public folder.
 // To swap data: replace public/statpad_data.json with new data from
-// generate_data_v5.py and restart the dev server.
+// generate_data_v7.py and restart the dev server.
+
+// Some player names in older data exports contain literal \xNN byte sequences
+// instead of proper Unicode (e.g. "Adri\xc3\xa1n" instead of "Adrián").
+// This happens when the Python data script wrote UTF-8 byte values as escaped
+// text rather than decoded Unicode characters. Decode them here at load time.
+function fixName(name) {
+  if (typeof name !== "string" || !name.includes("\\x")) return name;
+  try {
+    return name.replace(/((?:\\x[0-9a-fA-F]{2})+)/g, (match) => {
+      const bytes = new Uint8Array(
+        match.match(/\\x([0-9a-fA-F]{2})/g).map(m => parseInt(m.slice(2), 16))
+      );
+      return new TextDecoder("utf-8").decode(bytes);
+    });
+  } catch {
+    return name;
+  }
+}
+
+const VALID_BATS = new Set(["L", "R", "S"]);
 
 function usePlayerData() {
   const [data, setData] = useState([]);
@@ -20,9 +40,14 @@ function usePlayerData() {
     fetch("/statpad_data.json")
       .then(r => r.json())
       .then(d => {
-        // Compute XBH if missing
         d.forEach(ps => {
+          // Decode Latin/accented names stored as literal \xNN byte sequences
+          ps.name = fixName(ps.name);
+          // Compute XBH if missing
           if (ps.XBH == null) ps.XBH = (ps["2B"]||0) + (ps["3B"]||0) + (ps.HR||0);
+          // Normalise bats: if missing or unrecognised, mark as unknown so the
+          // engine does not incorrectly match every player against a bats filter.
+          if (!VALID_BATS.has(ps.bats)) ps.bats = null;
         });
         setData(d);
         setLoading(false);
