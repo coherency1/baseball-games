@@ -225,8 +225,8 @@ function CategoryDisplay({ category }) {
   if (type === CATEGORY_TYPES.DIVISION && category.teams) {
     return (
       <div style={{ display:"flex",flexDirection:"column",alignItems:"center",gap:"4px",minWidth:"70px" }}>
-        <div style={{ display:"flex",gap:"2px",flexWrap:"wrap",justifyContent:"center" }}>
-          {category.teams.slice(0,3).map(t => <TeamLogo key={t} team={t} size={22} />)}
+        <div style={{ display:"flex",gap:"2px",flexWrap:"wrap",justifyContent:"center",maxWidth:"112px" }}>
+          {category.teams.map(t => <TeamLogo key={t} team={t} size={20} />)}
         </div>
         <span style={{ fontSize:"10px",color:"rgba(255,255,255,0.5)",fontWeight:600 }}>{category.label}</span>
       </div>
@@ -267,12 +267,16 @@ function CategoryDisplay({ category }) {
   let topLabel = "";
   if (type === CATEGORY_TYPES.POSITION) topLabel = "POSITION";
   if (type === CATEGORY_TYPES.BATS) topLabel = "BATS";
+  const isAnyPos = type === CATEGORY_TYPES.POSITION && (category.value === "DH" || category.value === "UTL");
   return (
     <div style={{ textAlign:"center",minWidth:"80px" }}>
       {topLabel && <div style={{ fontSize:"9px",color:"rgba(255,255,255,0.4)",letterSpacing:"0.08em",marginBottom:"2px" }}>{topLabel}</div>}
       <div style={{ fontSize:"16px",fontWeight:800,color:"#fff" }}>{category.label}</div>
       {type === CATEGORY_TYPES.STAT_THRESHOLD && (
         <div style={{ fontSize:"8px",color:"#f59e0b",fontWeight:700,letterSpacing:"0.08em",background:"rgba(245,158,11,0.15)",borderRadius:"3px",padding:"2px 6px",marginTop:"3px",display:"inline-block" }}>SAME SEASON</div>
+      )}
+      {isAnyPos && (
+        <div style={{ fontSize:"8px",color:"#60a5fa",fontWeight:700,letterSpacing:"0.08em",background:"rgba(96,165,250,0.12)",borderRadius:"3px",padding:"2px 6px",marginTop:"3px",display:"inline-block" }}>ANY POS</div>
       )}
     </div>
   );

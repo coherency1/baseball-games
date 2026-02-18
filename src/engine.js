@@ -39,8 +39,15 @@ export function matchesCategory(ps, cat) {
     case CATEGORY_TYPES.YEAR_RANGE: return ps.year >= cat.value[0] && ps.year <= cat.value[1];
     case CATEGORY_TYPES.YEAR_EXACT: return ps.year === cat.value;
     case CATEGORY_TYPES.POSITION: {
-      if (cat.value === "IF") return ["1B","2B","3B","SS"].includes(ps.pos);
-      if (cat.value === "OF") return ps.pos === "OF";
+      // DH and UTL are "any position" categories — every hitter qualifies
+      if (cat.value === "DH" || cat.value === "UTL") return true;
+      // IF umbrella covers all infield positions
+      if (cat.value === "IF") return ["1B","2B","3B","SS","IF"].includes(ps.pos);
+      // OF umbrella covers all outfield positions (data may store LF/RF/CF or normalised OF)
+      if (cat.value === "OF") return ["OF","LF","RF","CF"].includes(ps.pos);
+      // Specific outfield sub-positions
+      if (cat.value === "LF" || cat.value === "RF" || cat.value === "CF") return ps.pos === cat.value;
+      // Exact match for C, 1B, 2B, 3B, SS
       return ps.pos === cat.value;
     }
     case CATEGORY_TYPES.BATS: return ps.bats === cat.value;
@@ -73,10 +80,24 @@ function catsOverlap(a, b) {
   if (a.type === CATEGORY_TYPES.LEAGUE)   return a.value === b.value;
   if (a.type === CATEGORY_TYPES.BATS)     return a.value === b.value;
 
-  // IF expands to {1B,2B,3B,SS} — use set intersection so IF vs 2B is detected.
   if (a.type === CATEGORY_TYPES.POSITION) {
+    // DH and UTL are "any" categories. They only overlap with each other — not
+    // with specific positions — so a DH row and an IF row can coexist (the
+    // team+year constraints already prevent trivial same-player double-jeopardy).
+    const ANY_POS = new Set(["DH", "UTL"]);
+    const aIsAny = ANY_POS.has(a.value), bIsAny = ANY_POS.has(b.value);
+    if (aIsAny && bIsAny) return true;
+    if (aIsAny || bIsAny) return false;
+
+    // IF expands to {1B,2B,3B,SS}; OF expands to {LF,CF,RF,OF}.
+    // Use set intersection so IF vs 2B and OF vs LF are correctly detected.
     const IF_SET = new Set(["1B", "2B", "3B", "SS"]);
-    const expand = v => (v === "IF" ? IF_SET : new Set([v]));
+    const OF_SET = new Set(["OF", "LF", "CF", "RF"]);
+    const expand = v => {
+      if (v === "IF") return IF_SET;
+      if (v === "OF") return OF_SET;
+      return new Set([v]);
+    };
     const aSet = expand(a.value);
     const bSet = expand(b.value);
     for (const p of aSet) { if (bSet.has(p)) return true; }
@@ -116,14 +137,18 @@ function genCol1(availableTeams) {
   return { type: CATEGORY_TYPES.ALL_TEAMS, value: "all", label: "MLB" };
 }
 
-function genCol2() {
-  // Column 2: year range (70%) or exact year (30%)
+function genCol2(teamSelected = false) {
+  // Column 2: year range (70%) or exact year (30%).
+  // When a single team is in col 1, exact years are restricted to 2024/2025 —
+  // every earlier year must use a range to keep rows meaningfully distinct.
   if (Math.random() < 0.70) {
     const ranges = [[2008,2012],[2010,2015],[2012,2017],[2015,2020],[2018,2023],[2020,2025],[2010,2020],[2015,2025]];
     const range = ranges[Math.floor(Math.random() * ranges.length)];
     return { type: CATEGORY_TYPES.YEAR_RANGE, value: range, label: `${range[0]} to ${range[1]}` };
   }
-  const y = 2010 + Math.floor(Math.random() * 16); // 2010-2025
+  const y = teamSelected
+    ? (Math.random() < 0.5 ? 2024 : 2025)   // single-team exact: 2024 or 2025 only
+    : 2010 + Math.floor(Math.random() * 16); // any year 2010-2025
   return { type: CATEGORY_TYPES.YEAR_EXACT, value: y, label: `${y}` };
 }
 
@@ -131,9 +156,10 @@ function genCol3() {
   // Column 3: position (35%), bats (25%), stat threshold (40%)
   const r = Math.random();
   if (r < 0.35) {
-    const positions = ["OF","IF","1B","2B","3B","SS","DH","C"];
+    // DH and UTL are "any position" — intentionally broad, used as easier rows.
+    const positions = ["OF","IF","1B","2B","3B","SS","C","DH","UTL"];
     const p = positions[Math.floor(Math.random() * positions.length)];
-    const labels = { OF:"Outfield", IF:"Infield", DH:"DH", C:"Catcher", "1B":"1B", "2B":"2B", "3B":"3B", SS:"SS" };
+    const labels = { OF:"Outfield", IF:"Infield", C:"Catcher", DH:"DH", UTL:"Utility", "1B":"1B", "2B":"2B", "3B":"3B", SS:"SS" };
     return { type: CATEGORY_TYPES.POSITION, value: p, label: labels[p] || p };
   }
   if (r < 0.60) {
@@ -171,7 +197,7 @@ export function generatePuzzle(playerSeasons, numRows = 5) {
     // Primary loop: 150 attempts at a valid, non-overlapping row
     for (let attempt = 0; attempt < 150; attempt++) {
       const c1 = genCol1(availableTeams);
-      const c2 = genCol2();
+      const c2 = genCol2(c1.type === CATEGORY_TYPES.TEAM);
       const c3 = genCol3();
       const cats = [c1, c2, c3];
 
