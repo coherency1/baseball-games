@@ -183,9 +183,31 @@ def main():
         import requests
         from zipfile import ZipFile
         from io import BytesIO
+        import pybaseball.lahman as _lahman
     except ImportError:
-        print("ERROR: Run:  pip install pandas requests")
+        print("ERROR: Run:  pip install pandas requests pybaseball")
         sys.exit(1)
+
+    # ── Monkey-patch pybaseball's broken get_lahman_zip ────────────
+    # pybaseball hardcodes the 'master' branch URL which is now a dead
+    # redirect. Patch it to try the correct /archive/refs/heads/ path.
+    def _fixed_get_lahman_zip():
+        for branch in ("main", "master"):
+            url = (f"https://github.com/chadwickbureau/baseballdatabank"
+                   f"/archive/refs/heads/{branch}.zip")
+            try:
+                r = requests.get(url, timeout=60)
+                r.raise_for_status()
+                z = ZipFile(BytesIO(r.content))
+                print(f"  Lahman ZIP downloaded (branch: {branch}, {len(r.content)//1024} KB)")
+                return z
+            except Exception as e:
+                print(f"  Branch '{branch}' failed: {e}")
+        raise RuntimeError(
+            "Could not download Lahman database from GitHub. "
+            "Check your internet connection."
+        )
+    _lahman.get_lahman_zip = _fixed_get_lahman_zip
 
     era_label = f"All-Time ({args.start}–{args.end})"
 
@@ -194,48 +216,15 @@ def main():
     print(f"Range: {args.start}-{args.end}  |  Top {args.top} per category")
     print("=" * 60)
 
-    # ── Download Chadwick Bureau ZIP ───────────────────────────────
-    # Download the full repo ZIP and extract CSVs in memory.
-    # Using /archive/refs/heads/ is more reliable than /archive/ shorthand.
-    print("\n[1/4] Downloading Chadwick Bureau baseball databank ZIP...")
-    HEADERS = {"User-Agent": "baseball-data-generator/1.0 (github.com/chadwickbureau/baseballdatabank)"}
-    lahman_zip = None
-    zip_prefix = None
-    for branch in ("main", "master"):
-        url = f"https://github.com/chadwickbureau/baseballdatabank/archive/refs/heads/{branch}.zip"
-        print(f"  Trying {url}")
-        try:
-            r = requests.get(url, headers=HEADERS, timeout=60)
-            r.raise_for_status()
-            lahman_zip = ZipFile(BytesIO(r.content))
-            zip_prefix = f"baseballdatabank-{branch}/core/"
-            print(f"  Downloaded {len(r.content)//1024} KB (branch: {branch})")
-            break
-        except Exception as e:
-            print(f"  Failed: {e}")
-            continue
-
-    if lahman_zip is None:
-        print("\nERROR: Could not download Chadwick Bureau data from GitHub.")
-        print("Download manually and place CSVs in a local directory:")
-        print("  https://github.com/chadwickbureau/baseballdatabank/archive/refs/heads/main.zip")
-        print("Then re-run with: --local-dir /path/to/baseballdatabank/core")
-        sys.exit(1)
-
-    def read_csv_from_zip(z, prefix, filename):
-        zpath = prefix + filename
-        with z.open(zpath) as f:
-            return pd.read_csv(f, low_memory=False)
-
     # ── People (name map) ──────────────────────────────────────────
-    print("\n[2/4] Parsing People.csv...")
-    people_df = read_csv_from_zip(lahman_zip, zip_prefix, "People.csv")
+    print("\n[1/4] Loading Lahman People.csv...")
+    people_df = _lahman.people()
     name_map  = build_name_map(people_df)
     print(f"  {len(name_map)} players in name map")
 
     # ── Batting ───────────────────────────────────────────────────
-    print("\n[3/4] Parsing Batting.csv...")
-    bat_df = read_csv_from_zip(lahman_zip, zip_prefix, "Batting.csv")
+    print("\n[2/4] Loading Lahman Batting.csv...")
+    bat_df = _lahman.batting()
     bat_df = bat_df[(bat_df["yearID"] >= args.start) & (bat_df["yearID"] <= args.end)]
     print(f"  {len(bat_df)} batting rows ({bat_df['yearID'].nunique()} seasons)")
     print("  Aggregating career batting totals...")
@@ -243,8 +232,8 @@ def main():
     print(f"  {len(bat)} unique batters")
 
     # ── Pitching ──────────────────────────────────────────────────
-    print("\n[4/5] Parsing Pitching.csv...")
-    pit_df = read_csv_from_zip(lahman_zip, zip_prefix, "Pitching.csv")
+    print("\n[3/4] Loading Lahman Pitching.csv...")
+    pit_df = _lahman.pitching()
     pit_df = pit_df[(pit_df["yearID"] >= args.start) & (pit_df["yearID"] <= args.end)]
     print(f"  {len(pit_df)} pitching rows ({pit_df['yearID'].nunique()} seasons)")
     print("  Aggregating career pitching totals...")
@@ -252,7 +241,7 @@ def main():
     print(f"  {len(pit)} unique pitchers")
 
     # ── WAR (Baseball Reference via pybaseball) ────────────────────
-    print("\n[5/5] Loading WAR from Baseball Reference (pybaseball.bwar_bat)...")
+    print("\n[4/4] Loading WAR from Baseball Reference (pybaseball.bwar_bat)...")
     try:
         from pybaseball.league_batting_stats import bwar_bat
         war_df = bwar_bat()
