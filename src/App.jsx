@@ -5,6 +5,7 @@ import {
   matchesCategory, findMatchingSeasons,
   generatePuzzle, computePercentile, getTier,
 } from "./engine.js";
+import PinpointChallenge from "./PinpointChallenge.jsx";
 
 // =====================================================================
 // DATA LOADING
@@ -369,6 +370,7 @@ export default function App() {
   const [retryMode, setRetryMode] = useState(false);
   const [activeRow, setActiveRow] = useState(null);
   const [showHowTo, setShowHowTo] = useState(false);
+  const [activePage, setActivePage] = useState("statpad"); // "statpad" | "pinpoint"
 
   useEffect(() => {
     if (playerSeasons.length > 0) setPuzzle(generatePuzzle(playerSeasons, 5));
@@ -407,63 +409,92 @@ export default function App() {
   const newGame = () => { setPuzzle(generatePuzzle(playerSeasons, 5)); setSubmissions({}); setWrongAttempts({}); };
 
   if (loading) return <div style={{ minHeight:"100vh",background:"#111318",color:"#fff",display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"system-ui" }}>Loading data...</div>;
-  if (!puzzle) return null;
+  if (!puzzle && activePage === "statpad") return null;
 
   return (
     <div style={{ minHeight:"100vh",background:"#111318",color:"#fff",fontFamily:"-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif" }}>
       <div style={{ maxWidth:"560px",margin:"0 auto",padding:"20px 16px" }}>
-        <div style={{ fontSize:"20px",fontWeight:800,letterSpacing:"-0.02em",marginBottom:"4px" }}>Statpad Game Clone</div>
-
-        {/* Score Header */}
-        <div style={{ display:"flex",alignItems:"flex-end",justifyContent:"space-between",padding:"16px 0",marginBottom:"12px" }}>
-          <div>
-            <div style={{ fontSize:"36px",fontWeight:900,lineHeight:1 }}>{puzzle.scoringStat.label}</div>
-            <div style={{ fontSize:"11px",color:"rgba(255,255,255,0.4)",letterSpacing:"0.08em",marginTop:"2px" }}>CATEGORY</div>
-          </div>
-          <div style={{ textAlign:"center" }}>
-            <div style={{ fontSize:"42px",fontWeight:900,lineHeight:1 }}>{typeof totalScore==="number"&&totalScore%1!==0?totalScore.toFixed(1):totalScore}</div>
-            <div style={{ fontSize:"11px",color:"rgba(255,255,255,0.4)",letterSpacing:"0.08em",marginTop:"2px" }}>TOTAL SCORE</div>
-          </div>
-          <div style={{ textAlign:"center" }}>
-            <div style={{ fontSize:"42px",fontWeight:900,lineHeight:1 }}>{totalGuesses}</div>
-            <div style={{ fontSize:"11px",color:"rgba(255,255,255,0.4)",letterSpacing:"0.08em",marginTop:"2px" }}>TOTAL GUESSES</div>
+        {/* Title + Tab Bar */}
+        <div style={{ display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:"16px" }}>
+          <div style={{ fontSize:"20px",fontWeight:800,letterSpacing:"-0.02em" }}>Baseball Games</div>
+          <div style={{ display:"flex",gap:"4px",background:"rgba(255,255,255,0.05)",borderRadius:"10px",padding:"4px" }}>
+            <button
+              onClick={() => setActivePage("statpad")}
+              style={{
+                padding:"6px 16px",borderRadius:"7px",border:"none",cursor:"pointer",
+                fontSize:"13px",fontWeight:700,
+                background: activePage === "statpad" ? "rgba(255,255,255,0.12)" : "transparent",
+                color: activePage === "statpad" ? "#fff" : "rgba(255,255,255,0.4)",
+              }}
+            >StatPad</button>
+            <button
+              onClick={() => setActivePage("pinpoint")}
+              style={{
+                padding:"6px 16px",borderRadius:"7px",border:"none",cursor:"pointer",
+                fontSize:"13px",fontWeight:700,
+                background: activePage === "pinpoint" ? "rgba(255,255,255,0.12)" : "transparent",
+                color: activePage === "pinpoint" ? "#fff" : "rgba(255,255,255,0.4)",
+              }}
+            >Pinpoint</button>
           </div>
         </div>
 
-        <div style={{ height:"1px",background:"rgba(255,255,255,0.08)",marginBottom:"12px" }} />
+        {activePage === "statpad" ? (
+          <>
+            {/* Score Header */}
+            <div style={{ display:"flex",alignItems:"flex-end",justifyContent:"space-between",padding:"16px 0",marginBottom:"12px" }}>
+              <div>
+                <div style={{ fontSize:"36px",fontWeight:900,lineHeight:1 }}>{puzzle.scoringStat.label}</div>
+                <div style={{ fontSize:"11px",color:"rgba(255,255,255,0.4)",letterSpacing:"0.08em",marginTop:"2px" }}>CATEGORY</div>
+              </div>
+              <div style={{ textAlign:"center" }}>
+                <div style={{ fontSize:"42px",fontWeight:900,lineHeight:1 }}>{typeof totalScore==="number"&&totalScore%1!==0?totalScore.toFixed(1):totalScore}</div>
+                <div style={{ fontSize:"11px",color:"rgba(255,255,255,0.4)",letterSpacing:"0.08em",marginTop:"2px" }}>TOTAL SCORE</div>
+              </div>
+              <div style={{ textAlign:"center" }}>
+                <div style={{ fontSize:"42px",fontWeight:900,lineHeight:1 }}>{totalGuesses}</div>
+                <div style={{ fontSize:"11px",color:"rgba(255,255,255,0.4)",letterSpacing:"0.08em",marginTop:"2px" }}>TOTAL GUESSES</div>
+              </div>
+            </div>
 
-        {puzzle.rows.map((row,i) => (
-          <PuzzleRow key={`${puzzle.id}-${i}`} row={row} rowIndex={i} scoringStat={puzzle.scoringStat} submission={submissions[i]} allRows={puzzle.rows} playerSeasons={playerSeasons} onClickAdd={setActiveRow} retryMode={retryMode} wrongRowAttempts={wrongAttempts[i]} />
-        ))}
+            <div style={{ height:"1px",background:"rgba(255,255,255,0.08)",marginBottom:"12px" }} />
 
-        <div style={{ display:"flex",alignItems:"center",justifyContent:"center",gap:"12px",marginTop:"24px",paddingBottom:"24px",flexWrap:"wrap" }}>
-          <button onClick={newGame} style={{ padding:"10px 24px",borderRadius:"8px",border:"1px solid rgba(255,255,255,0.15)",background:"rgba(255,255,255,0.05)",color:"#fff",fontSize:"13px",fontWeight:600,cursor:"pointer" }}>New Game</button>
-          <button onClick={()=>setRetryMode(r=>!r)} style={{ padding:"10px 20px",borderRadius:"8px",border:`1px solid ${retryMode?"rgba(34,197,94,0.5)":"rgba(255,255,255,0.15)"}`,background:retryMode?"rgba(34,197,94,0.1)":"rgba(255,255,255,0.05)",color:retryMode?"#22c55e":"rgba(255,255,255,0.5)",fontSize:"13px",fontWeight:600,cursor:"pointer",display:"flex",alignItems:"center",gap:"6px" }}>
-            <span style={{ width:"14px",height:"14px",borderRadius:"50%",background:retryMode?"#22c55e":"rgba(255,255,255,0.2)",display:"inline-block",flexShrink:0 }} />
-            Retries {retryMode?"ON":"OFF"}
-          </button>
-          <button onClick={()=>setShowHowTo(!showHowTo)} style={{ padding:"10px 20px",borderRadius:"8px",border:"1px solid rgba(255,255,255,0.15)",background:"rgba(255,255,255,0.05)",color:"rgba(255,255,255,0.6)",fontSize:"13px",fontWeight:600,cursor:"pointer",display:"flex",alignItems:"center",gap:"6px" }}>
-            <span style={{ width:"18px",height:"18px",borderRadius:"50%",border:"1.5px solid rgba(255,255,255,0.4)",display:"inline-flex",alignItems:"center",justifyContent:"center",fontSize:"11px",fontWeight:800 }}>?</span>HOW TO PLAY
-          </button>
-        </div>
+            {puzzle.rows.map((row,i) => (
+              <PuzzleRow key={`${puzzle.id}-${i}`} row={row} rowIndex={i} scoringStat={puzzle.scoringStat} submission={submissions[i]} allRows={puzzle.rows} playerSeasons={playerSeasons} onClickAdd={setActiveRow} retryMode={retryMode} wrongRowAttempts={wrongAttempts[i]} />
+            ))}
 
-        {showHowTo && (
-          <div style={{ background:"rgba(255,255,255,0.03)",borderRadius:"12px",padding:"20px",border:"1px solid rgba(255,255,255,0.06)",fontSize:"13px",color:"rgba(255,255,255,0.6)",lineHeight:1.7,marginBottom:"24px" }}>
-            <p style={{margin:"0 0 10px"}}>Each puzzle has a scoring stat and 5 rows. Each row has 3 filters a player-season must satisfy.</p>
-            <p style={{margin:"0 0 10px"}}>Column 1 is always a team, division, or league. Column 2 is a year or year range. Column 3 is a player attribute (position, handedness, or stat threshold).</p>
-            <p style={{margin:"0 0 10px"}}>Click + to search for a player, pick their year, and submit. If correct, that season's stat is your score.</p>
-            <p style={{margin:"0"}}>Tiers: below 50th = no tier, 50-70th = bronze, 70-90th = silver, 90-95th = gold, 95-100th = platinum.</p>
-          </div>
+            <div style={{ display:"flex",alignItems:"center",justifyContent:"center",gap:"12px",marginTop:"24px",paddingBottom:"24px",flexWrap:"wrap" }}>
+              <button onClick={newGame} style={{ padding:"10px 24px",borderRadius:"8px",border:"1px solid rgba(255,255,255,0.15)",background:"rgba(255,255,255,0.05)",color:"#fff",fontSize:"13px",fontWeight:600,cursor:"pointer" }}>New Game</button>
+              <button onClick={()=>setRetryMode(r=>!r)} style={{ padding:"10px 20px",borderRadius:"8px",border:`1px solid ${retryMode?"rgba(34,197,94,0.5)":"rgba(255,255,255,0.15)"}`,background:retryMode?"rgba(34,197,94,0.1)":"rgba(255,255,255,0.05)",color:retryMode?"#22c55e":"rgba(255,255,255,0.5)",fontSize:"13px",fontWeight:600,cursor:"pointer",display:"flex",alignItems:"center",gap:"6px" }}>
+                <span style={{ width:"14px",height:"14px",borderRadius:"50%",background:retryMode?"#22c55e":"rgba(255,255,255,0.2)",display:"inline-block",flexShrink:0 }} />
+                Retries {retryMode?"ON":"OFF"}
+              </button>
+              <button onClick={()=>setShowHowTo(!showHowTo)} style={{ padding:"10px 20px",borderRadius:"8px",border:"1px solid rgba(255,255,255,0.15)",background:"rgba(255,255,255,0.05)",color:"rgba(255,255,255,0.6)",fontSize:"13px",fontWeight:600,cursor:"pointer",display:"flex",alignItems:"center",gap:"6px" }}>
+                <span style={{ width:"18px",height:"18px",borderRadius:"50%",border:"1.5px solid rgba(255,255,255,0.4)",display:"inline-flex",alignItems:"center",justifyContent:"center",fontSize:"11px",fontWeight:800 }}>?</span>HOW TO PLAY
+              </button>
+            </div>
+
+            {showHowTo && (
+              <div style={{ background:"rgba(255,255,255,0.03)",borderRadius:"12px",padding:"20px",border:"1px solid rgba(255,255,255,0.06)",fontSize:"13px",color:"rgba(255,255,255,0.6)",lineHeight:1.7,marginBottom:"24px" }}>
+                <p style={{margin:"0 0 10px"}}>Each puzzle has a scoring stat and 5 rows. Each row has 3 filters a player-season must satisfy.</p>
+                <p style={{margin:"0 0 10px"}}>Column 1 is always a team, division, or league. Column 2 is a year or year range. Column 3 is a player attribute (position, handedness, or stat threshold).</p>
+                <p style={{margin:"0 0 10px"}}>Click + to search for a player, pick their year, and submit. If correct, that season's stat is your score.</p>
+                <p style={{margin:"0"}}>Tiers: below 50th = no tier, 50-70th = bronze, 70-90th = silver, 90-95th = gold, 95-100th = platinum.</p>
+              </div>
+            )}
+
+            <div style={{ textAlign:"center",fontSize:"10px",color:"rgba(255,255,255,0.15)",padding:"12px 0 24px" }}>
+              {playerSeasons.length.toLocaleString()} player-seasons loaded
+            </div>
+
+            {activeRow !== null && (
+              <PlayerSearchModal key={activeRow} playerSeasons={playerSeasons} onSelect={handlePlayerSelect} onClose={()=>setActiveRow(null)} />
+            )}
+          </>
+        ) : (
+          <PinpointChallenge />
         )}
-
-        <div style={{ textAlign:"center",fontSize:"10px",color:"rgba(255,255,255,0.15)",padding:"12px 0 24px" }}>
-          {playerSeasons.length.toLocaleString()} player-seasons loaded
-        </div>
       </div>
-
-      {activeRow !== null && (
-        <PlayerSearchModal key={activeRow} playerSeasons={playerSeasons} onSelect={handlePlayerSelect} onClose={()=>setActiveRow(null)} />
-      )}
     </div>
   );
 }
