@@ -138,18 +138,54 @@ function genCol1(availableTeams) {
 }
 
 function genCol2(teamSelected = false) {
-  // Column 2: year range (70%) or exact year (30%).
-  // When a single team is in col 1, exact years are restricted to 2024/2025 —
-  // every earlier year must use a range to keep rows meaningfully distinct.
-  if (Math.random() < 0.70) {
-    const ranges = [[2008,2012],[2010,2015],[2012,2017],[2015,2020],[2018,2023],[2020,2025],[2010,2020],[2015,2025]];
-    const range = ranges[Math.floor(Math.random() * ranges.length)];
-    return { type: CATEGORY_TYPES.YEAR_RANGE, value: range, label: `${range[0]} to ${range[1]}` };
+  // Predetermined probability distribution (all weights sum to 100):
+  //   2025 exact        15%  │  2021-2025 range   20%
+  //   2024 exact        15%  │  2008-2014 exact    3%  (÷7 per year)
+  //   2010-2020 range   15%  │  2015-2017 exact    5%  (÷3 per year)
+  //                          │  2018-2020 exact   10%  (÷3 per year)
+  //                          │  2021-2023 exact   17%  (÷3 per year)
+  const r = Math.random() * 100;
+
+  let result;
+  if (r < 15) {
+    result = { type: CATEGORY_TYPES.YEAR_EXACT, value: 2025, label: "2025" };
+  } else if (r < 30) {
+    result = { type: CATEGORY_TYPES.YEAR_EXACT, value: 2024, label: "2024" };
+  } else if (r < 45) {
+    result = { type: CATEGORY_TYPES.YEAR_RANGE, value: [2010, 2020], label: "2010 to 2020" };
+  } else if (r < 65) {
+    result = { type: CATEGORY_TYPES.YEAR_RANGE, value: [2021, 2025], label: "2021 to 2025" };
+  } else if (r < 68) {
+    // 2008-2014: 3% across 7 years
+    const yrs = [2008, 2009, 2010, 2011, 2012, 2013, 2014];
+    const y = yrs[Math.min(Math.floor((r - 65) * 7 / 3), 6)];
+    result = { type: CATEGORY_TYPES.YEAR_EXACT, value: y, label: `${y}` };
+  } else if (r < 73) {
+    // 2015-2017: 5% across 3 years
+    const yrs = [2015, 2016, 2017];
+    const y = yrs[Math.min(Math.floor((r - 68) * 3 / 5), 2)];
+    result = { type: CATEGORY_TYPES.YEAR_EXACT, value: y, label: `${y}` };
+  } else if (r < 83) {
+    // 2018-2020: 10% across 3 years
+    const yrs = [2018, 2019, 2020];
+    const y = yrs[Math.min(Math.floor((r - 73) * 3 / 10), 2)];
+    result = { type: CATEGORY_TYPES.YEAR_EXACT, value: y, label: `${y}` };
+  } else {
+    // 2021-2023: remaining 17% across 3 years
+    const yrs = [2021, 2022, 2023];
+    const y = yrs[Math.min(Math.floor((r - 83) * 3 / 17), 2)];
+    result = { type: CATEGORY_TYPES.YEAR_EXACT, value: y, label: `${y}` };
   }
-  const y = teamSelected
-    ? (Math.random() < 0.5 ? 2024 : 2025)   // single-team exact: 2024 or 2025 only
-    : 2010 + Math.floor(Math.random() * 16); // any year 2010-2025
-  return { type: CATEGORY_TYPES.YEAR_EXACT, value: y, label: `${y}` };
+
+  // Single-team constraint: exact years before 2024 must fall back to a range.
+  // Redistribute proportionally between the two defined ranges (15% and 20%).
+  if (teamSelected && result.type === CATEGORY_TYPES.YEAR_EXACT && result.value < 2024) {
+    return Math.random() < (15 / 35)
+      ? { type: CATEGORY_TYPES.YEAR_RANGE, value: [2010, 2020], label: "2010 to 2020" }
+      : { type: CATEGORY_TYPES.YEAR_RANGE, value: [2021, 2025], label: "2021 to 2025" };
+  }
+
+  return result;
 }
 
 function genCol3() {

@@ -50,12 +50,14 @@ function TeamLogo({ team, size = 40 }) {
     </div>
   );
   return (
-    <img
-      src={getTeamLogoUrl(team)}
-      alt={info.name}
-      style={{ width:size,height:size,objectFit:"contain",flexShrink:0 }}
-      onError={() => setImgError(true)}
-    />
+    <div style={{ width:size,height:size,borderRadius:Math.round(size*0.18),background:"rgba(255,255,255,0.93)",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,overflow:"hidden" }}>
+      <img
+        src={getTeamLogoUrl(team)}
+        alt={info.name}
+        style={{ width:size*0.82,height:size*0.82,objectFit:"contain" }}
+        onError={() => setImgError(true)}
+      />
+    </div>
   );
 }
 
@@ -159,13 +161,16 @@ function ResultCard({ playerName, year, team, score, statLabel, percentile, onCl
   );
 }
 
-function IncorrectCard({ playerName, year, reason }) {
+function IncorrectCard({ playerName, year, reason, onClick, showingTop5 }) {
   return (
-    <div style={{ background:"rgba(239,68,68,0.1)",borderRadius:"12px",padding:"14px 18px",border:"1px solid rgba(239,68,68,0.3)",display:"flex",alignItems:"center",gap:"12px" }}>
-      <div style={{ width:"36px",height:"36px",borderRadius:"50%",background:"rgba(239,68,68,0.2)",display:"flex",alignItems:"center",justifyContent:"center",color:"#ef4444",fontSize:"18px",fontWeight:800,flexShrink:0 }}>X</div>
-      <div>
+    <div style={{ background:"rgba(239,68,68,0.1)",borderRadius:"12px",padding:"14px 18px",border:"1px solid rgba(239,68,68,0.3)",display:"flex",alignItems:"center",gap:"12px",cursor:"pointer" }} onClick={onClick}>
+      <div style={{ width:"36px",height:"36px",borderRadius:"50%",background:"rgba(239,68,68,0.2)",display:"flex",alignItems:"center",justifyContent:"center",color:"#ef4444",fontSize:"18px",fontWeight:800,flexShrink:0 }}>✕</div>
+      <div style={{ flex:1,minWidth:0 }}>
         <div style={{ color:"#fca5a5",fontWeight:700,fontSize:"15px" }}>{playerName} {year?`(${year})`:""}</div>
         <div style={{ color:"rgba(255,255,255,0.4)",fontSize:"12px",marginTop:"2px" }}>{reason}</div>
+      </div>
+      <div style={{ fontSize:"10px",color:"rgba(255,255,255,0.3)",fontWeight:600,flexShrink:0,letterSpacing:"0.04em" }}>
+        {showingTop5 ? "▲ HIDE" : "▼ TOP 5"}
       </div>
     </div>
   );
@@ -224,11 +229,11 @@ function CategoryDisplay({ category }) {
   }
   if (type === CATEGORY_TYPES.DIVISION && category.teams) {
     return (
-      <div style={{ display:"flex",flexDirection:"column",alignItems:"center",gap:"4px",minWidth:"70px" }}>
-        <div style={{ display:"flex",gap:"2px",flexWrap:"wrap",justifyContent:"center",maxWidth:"112px" }}>
-          {category.teams.map(t => <TeamLogo key={t} team={t} size={20} />)}
+      <div style={{ display:"flex",flexDirection:"column",alignItems:"center",gap:"5px" }}>
+        <div style={{ display:"flex",gap:"3px",flexWrap:"wrap",justifyContent:"center",maxWidth:"120px" }}>
+          {category.teams.map(t => <TeamLogo key={t} team={t} size={22} />)}
         </div>
-        <span style={{ fontSize:"10px",color:"rgba(255,255,255,0.5)",fontWeight:600 }}>{category.label}</span>
+        <span style={{ fontSize:"10px",color:"rgba(255,255,255,0.5)",fontWeight:600,textAlign:"center" }}>{category.label}</span>
       </div>
     );
   }
@@ -298,7 +303,12 @@ function PuzzleRow({ row, rowIndex, scoringStat, submission, allRows, playerSeas
     );
   }
   if (submission && !submission.correct) {
-    return <div style={{ marginBottom:"8px" }}><IncorrectCard playerName={submission.playerName} year={submission.year} reason={submission.reason} /></div>;
+    return (
+      <div style={{ marginBottom:"8px" }}>
+        <IncorrectCard playerName={submission.playerName} year={submission.year} reason={submission.reason} onClick={()=>setShowStats(!showStats)} showingTop5={showStats} />
+        {showStats && <Top5Panel validAnswers={row.validAnswers} scoringStatKey={scoringStat.key} scoringStatLabel={scoringStat.label} />}
+      </div>
+    );
   }
   return (
     <div style={{ marginBottom:"8px" }}>
