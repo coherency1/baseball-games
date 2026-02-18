@@ -247,21 +247,26 @@ function CategoryDisplay({ category }) {
     );
   }
   if (type === CATEGORY_TYPES.DIVISION && category.teams) {
+    const top = category.teams.slice(0, 2);
+    const bottom = category.teams.slice(2);
     return (
-      <div style={{ display:"flex",flexDirection:"column",alignItems:"center",gap:"5px" }}>
-        <div style={{ display:"flex",gap:"3px",flexWrap:"wrap",justifyContent:"center",maxWidth:"120px" }}>
-          {category.teams.map(t => <TeamLogo key={t} team={t} size={22} />)}
+      <div style={{ display:"flex",flexDirection:"column",alignItems:"center",gap:"3px" }}>
+        <div style={{ display:"flex",gap:"3px",justifyContent:"center" }}>
+          {top.map(t => <TeamLogo key={t} team={t} size={22} />)}
         </div>
-        <span style={{ fontSize:"10px",color:"rgba(255,255,255,0.5)",fontWeight:600,textAlign:"center" }}>{category.label}</span>
+        <div style={{ display:"flex",gap:"3px",justifyContent:"center" }}>
+          {bottom.map(t => <TeamLogo key={t} team={t} size={22} />)}
+        </div>
+        <span style={{ fontSize:"10px",color:"rgba(255,255,255,0.5)",fontWeight:600,textAlign:"center",marginTop:"2px" }}>{category.label}</span>
       </div>
     );
   }
   if (type === CATEGORY_TYPES.LEAGUE) {
-    // Show 3 team logos from that league
-    const leagueTeams = Object.keys(MLB_TEAMS).filter(k=>MLB_TEAMS[k].league===category.value).slice(0,3);
     return (
       <div style={{ display:"flex",flexDirection:"column",alignItems:"center",gap:"4px",minWidth:"70px" }}>
-        <div style={{ display:"flex",gap:"2px" }}>{leagueTeams.map(t=><TeamLogo key={t} team={t} size={20} />)}</div>
+        <div style={{ width:44,height:44,borderRadius:Math.round(44*0.18),background:"rgba(255,255,255,0.93)",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0 }}>
+          <span style={{ color:"#1a1d23",fontSize:18,fontWeight:900,letterSpacing:"-0.02em" }}>{category.value}</span>
+        </div>
         <span style={{ fontSize:"10px",color:"rgba(255,255,255,0.5)",fontWeight:600 }}>{category.label}</span>
       </div>
     );
@@ -407,7 +412,7 @@ export default function App() {
   return (
     <div style={{ minHeight:"100vh",background:"#111318",color:"#fff",fontFamily:"-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif" }}>
       <div style={{ maxWidth:"560px",margin:"0 auto",padding:"20px 16px" }}>
-        <div style={{ fontSize:"20px",fontWeight:800,letterSpacing:"-0.02em",marginBottom:"4px" }}>StatpadGame.com</div>
+        <div style={{ fontSize:"20px",fontWeight:800,letterSpacing:"-0.02em",marginBottom:"4px" }}>Statpad Game Clone</div>
 
         {/* Score Header */}
         <div style={{ display:"flex",alignItems:"flex-end",justifyContent:"space-between",padding:"16px 0",marginBottom:"12px" }}>
