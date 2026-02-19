@@ -262,8 +262,9 @@ function genPitcherCol3() {
   return { type: CATEGORY_TYPES.STAT_THRESHOLD, value: o, label: o.label };
 }
 
-export function generatePuzzle(playerSeasons, pitcherSeasons = [], numRows = 5) {
-  const scoringStat = SCORING_STATS[Math.floor(Math.random() * SCORING_STATS.length)];
+export function generatePuzzle(playerSeasons, pitcherSeasons = [], numRows = 5, keepScoringStatKey = null) {
+  const scoringStat = (keepScoringStatKey && SCORING_STATS.find(s => s.key === keepScoringStatKey))
+    ?? SCORING_STATS[Math.floor(Math.random() * SCORING_STATS.length)];
   const isPitcherPuzzle = scoringStat.type === "pitching";
 
   // Pitcher puzzles use the pitcher pool; hitter puzzles exclude pitchers entirely.

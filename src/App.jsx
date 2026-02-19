@@ -598,7 +598,9 @@ export default function App() {
 
   useEffect(() => {
     if (playerSeasons.length > 0) {
-      setPuzzle(generatePuzzle(playerSeasons, pitcherSeasons, 5));
+      // Functional setter lets us read the previous puzzle's scoring stat
+      // so a filter change keeps the same category; only New Game randomises it.
+      setPuzzle(prev => generatePuzzle(playerSeasons, pitcherSeasons, 5, prev?.scoringStat?.key ?? null));
       setSubmissions({});
       setWrongAttempts({});
       setRetryMode(false);

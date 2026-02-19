@@ -479,12 +479,33 @@ export default function PinpointChallenge({ playerSeasons = [] }) {
 
   const MAX_STRIKES = 3;
 
-  // Initialize on first data load
+  // Ref always holds the current category id so the leaderboards effect
+  // can read it without stale-closure issues.
+  const currentCatIdRef = useRef(null);
+
+  const changeCategory = (cat) => {
+    currentCatIdRef.current = cat.id;
+    setCategory(cat);
+    setLastCatId(cat.id);
+  };
+
+  // On initial data load: pick random category.
+  // On filter change (leaderboards rebuilt): keep the same category id,
+  // falling back to random if it no longer exists, and reset game state.
   useEffect(() => {
-    if (leaderboards.length > 0 && !category) {
-      const cat = pickRandomCategory(leaderboards);
-      setCategory(cat);
-      setLastCatId(cat.id);
+    if (leaderboards.length === 0) return;
+    const prevId = currentCatIdRef.current;
+    const cat = prevId
+      ? (leaderboards.find(lb => lb.id === prevId) ?? pickRandomCategory(leaderboards))
+      : pickRandomCategory(leaderboards);
+    changeCategory(cat);
+    if (prevId) {
+      setGuesses([]);
+      setStrikes(0);
+      setScore(0);
+      setGameOver(false);
+      setQuery("");
+      setSuggestions([]);
     }
   }, [leaderboards]);
 
@@ -555,8 +576,7 @@ export default function PinpointChallenge({ playerSeasons = [] }) {
 
   const handlePlayAgain = () => {
     const cat = pickRandomCategory(leaderboards, lastCategoryId);
-    setCategory(cat);
-    setLastCatId(cat.id);
+    changeCategory(cat);
     setGuesses([]);
     setStrikes(0);
     setScore(0);
