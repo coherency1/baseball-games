@@ -529,6 +529,9 @@ export default function App() {
     raw ? buildPlayerSeasons(raw.people, raw.batting, raw.fielding, { ...settings, minPA: 1 }) : [],
     [raw, settings]
   );
+  // Combined pool for player search — lets users find any player (hitter or pitcher)
+  // regardless of current puzzle type. Validation via matchesCategory still gates answers.
+  const allSeasons = useMemo(() => [...playerSeasons, ...pitcherSeasons], [playerSeasons, pitcherSeasons]);
   const loading = csvLoading;
 
   const [puzzle, setPuzzle] = useState(null);
@@ -554,11 +557,10 @@ export default function App() {
   const handlePlayerSelect = (playerName, year) => {
     if (activeRow === null || !puzzle) return;
     const row = puzzle.rows[activeRow];
-    // Search the correct pool based on puzzle type (pitching vs. batting).
+    // Search the combined pool so both hitters and pitchers are always findable.
     // A player traded mid-season has multiple stints; pick the one satisfying
     // all row categories; fall back to the first if none do.
-    const pool = puzzle.isPitcherPuzzle ? pitcherSeasons : playerSeasons;
-    const allStints = pool.filter(p => p.name === playerName && p.year === year);
+    const allStints = allSeasons.filter(p => p.name === playerName && p.year === year);
     const ps = allStints.find(s => row.categories.every(cat => matchesCategory(s, cat)))
             ?? allStints[0];
     if (!ps) {
@@ -674,7 +676,7 @@ export default function App() {
             {activeRow !== null && (
               <PlayerSearchModal
                 key={activeRow}
-                seasons={puzzle.isPitcherPuzzle ? pitcherSeasons : playerSeasons}
+                seasons={allSeasons}
                 onSelect={handlePlayerSelect}
                 onClose={()=>setActiveRow(null)}
               />
