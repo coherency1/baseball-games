@@ -208,7 +208,7 @@ function MlbLogo({ size = 44 }) {
 }
 
 // -- Player Search Modal --
-function PlayerSearchModal({ seasons, onSelect, onClose }) {
+function PlayerSearchModal({ seasons, fixedYear = null, onSelect, onClose }) {
   const [query, setQuery] = useState("");
   const [selectedPlayer, setSelectedPlayer] = useState(null);
   const [selectedYear, setSelectedYear] = useState(null);
@@ -234,14 +234,13 @@ function PlayerSearchModal({ seasons, onSelect, onClose }) {
     ? [...new Set(seasons.filter(ps => ps.name === selectedPlayer).map(ps => ps.year))].sort((a,b)=>b-a)
     : [];
 
-  // If the player appears in only one year, skip the year-pick step entirely.
   const handleSelectPlayer = (name) => {
+    // Row is pinned to a single year — no picker needed.
+    if (fixedYear !== null) { onSelect(name, fixedYear); return; }
+    // Player only has one season in the whole dataset — auto-submit.
     const years = [...new Set(seasons.filter(ps => ps.name === name).map(ps => ps.year))];
-    if (years.length === 1) {
-      onSelect(name, years[0]);
-    } else {
-      setSelectedPlayer(name);
-    }
+    if (years.length === 1) { onSelect(name, years[0]); return; }
+    setSelectedPlayer(name);
   };
 
   return (
@@ -687,6 +686,7 @@ export default function App() {
               <PlayerSearchModal
                 key={activeRow}
                 seasons={allSeasons}
+                fixedYear={puzzle?.rows[activeRow]?.categories.find(c => c.type === CATEGORY_TYPES.YEAR_EXACT)?.value ?? null}
                 onSelect={handlePlayerSelect}
                 onClose={()=>setActiveRow(null)}
               />
