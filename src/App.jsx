@@ -56,25 +56,22 @@ const ERA_PRESETS = [
 
 function DataFilterPanel({ settings, onChange, recordCount }) {
   const [open, setOpen] = useState(false);
-  const { startYear, endYear, minPA } = settings;
+  const { startYear, endYear } = settings;
 
-  // Local draft state so year/minPA inputs don't reset the game on every keystroke.
+  // Local draft state so year inputs don't reset the game on every keystroke.
   // Drafts are committed (and a new game triggered) only when the input loses focus.
   const [draftStart, setDraftStart] = useState(startYear);
   const [draftEnd,   setDraftEnd]   = useState(endYear);
-  const [draftMinPA, setDraftMinPA] = useState(minPA);
 
   // Keep drafts in sync when an era preset is clicked (updates come from parent).
   useEffect(() => { setDraftStart(startYear); }, [startYear]);
   useEffect(() => { setDraftEnd(endYear); },     [endYear]);
-  useEffect(() => { setDraftMinPA(minPA); },     [minPA]);
 
   const commit = () => {
     const s = Math.min(Math.max(draftStart, 1871), draftEnd);
     const e = Math.max(Math.min(draftEnd, 2025), s);
-    const p = Math.max(1, draftMinPA);
-    if (s !== startYear || e !== endYear || p !== minPA) {
-      onChange({ ...settings, startYear: s, endYear: e, minPA: p });
+    if (s !== startYear || e !== endYear) {
+      onChange({ ...settings, startYear: s, endYear: e });
     }
   };
 
@@ -155,15 +152,6 @@ function DataFilterPanel({ settings, onChange, recordCount }) {
                 onChange={e => setDraftEnd(+e.target.value)}
                 onBlur={commit}
                 style={inputStyle}
-              />
-            </div>
-            <div>
-              <div style={{ fontSize: "10px", fontWeight: 700, color: "rgba(255,255,255,0.3)", letterSpacing: "0.08em", marginBottom: "4px" }}>MIN PA</div>
-              <input
-                type="number" min={1} max={700} value={draftMinPA}
-                onChange={e => setDraftMinPA(+e.target.value)}
-                onBlur={commit}
-                style={{ ...inputStyle, width: "70px" }}
               />
             </div>
           </div>
@@ -538,11 +526,11 @@ function PuzzleRow({ row, rowIndex, scoringStat, submission, allRows, playerSeas
 // =====================================================================
 export default function App() {
   const { raw, csvLoading, csvError } = useLahmanData();
-  const [settings, setSettings] = useState({ startYear: 2008, endYear: 2025, minPA: 50 });
+  const [settings, setSettings] = useState({ startYear: 2008, endYear: 2025 });
 
   // Re-filter instantly when settings change — no re-fetch
   const playerSeasons = useMemo(() =>
-    raw ? buildPlayerSeasons(raw.people, raw.batting, raw.fielding, settings) : [],
+    raw ? buildPlayerSeasons(raw.people, raw.batting, raw.fielding, { ...settings, minPA: 50 }) : [],
     [raw, settings]
   );
 
