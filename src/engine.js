@@ -150,60 +150,88 @@ function genCol1(availableTeams) {
   return { type: CATEGORY_TYPES.ALL_TEAMS, value: "all", label: "MLB" };
 }
 
-function genCol2(teamSelected = false) {
-  // Predetermined probability distribution (all weights sum to 100):
-  //   2025 exact        10%  │  2021-2025 range   20%
-  //   2024 exact        10%  │  2008-2016 range    5%
-  //   2010-2020 range   15%  │  2017-2025 range    5%
-  //                          │  2008-2014 exact    3%  (÷7 per year)
-  //                          │  2015-2017 exact    5%  (÷3 per year)
-  //                          │  2018-2020 exact   10%  (÷3 per year)
-  //                          │  2021-2023 exact   17%  (÷3 per year)
-  const r = Math.random() * 100;
+// Era-aware year category generator.
+//
+// Range breakpoints are the same relative positions as the original 2008-2025
+// distribution (fractions derived from that era's integer offsets), so the feel
+// of the puzzles is preserved regardless of which era the user has selected:
+//
+//   range A  [~12%, ~71%]  weight 15   (like 2010-2020 in the default era)
+//   range B  [~76%, 100%]  weight 20   (like 2021-2025)
+//   range C  [  0%, ~47%]  weight  5   (like 2008-2016)
+//   range D  [~53%, 100%]  weight  5   (like 2017-2025)
+//
+// Exact years use the same recency weights as before:
+//   last year: 10%, 2nd last: 10%, years 3-5: 17%, 6-8: 10%, 9-11: 5%, 12+: 3%
+function genCol2(eraStart, eraEnd, teamSelected = false) {
+  const span = eraEnd - eraStart;
+  // Map a [0,1] fraction to a year offset using Math.round so that for the
+  // default 2008-2025 era (span=17) we get exactly the original breakpoints.
+  const yr = (f) => eraStart + Math.round(span * f);
 
-  let result;
-  if (r < 10) {
-    result = { type: CATEGORY_TYPES.YEAR_EXACT, value: 2025, label: "2025" };
-  } else if (r < 20) {
-    result = { type: CATEGORY_TYPES.YEAR_EXACT, value: 2024, label: "2024" };
-  } else if (r < 35) {
-    result = { type: CATEGORY_TYPES.YEAR_RANGE, value: [2010, 2020], label: "2010 to 2020" };
-  } else if (r < 55) {
-    result = { type: CATEGORY_TYPES.YEAR_RANGE, value: [2021, 2025], label: "2021 to 2025" };
-  } else if (r < 60) {
-    result = { type: CATEGORY_TYPES.YEAR_RANGE, value: [2008, 2016], label: "2008 to 2016" };
-  } else if (r < 65) {
-    result = { type: CATEGORY_TYPES.YEAR_RANGE, value: [2017, 2025], label: "2017 to 2025" };
-  } else if (r < 68) {
-    // 2008-2014: 3% across 7 years
-    const yrs = [2008, 2009, 2010, 2011, 2012, 2013, 2014];
-    const y = yrs[Math.min(Math.floor((r - 65) * 7 / 3), 6)];
-    result = { type: CATEGORY_TYPES.YEAR_EXACT, value: y, label: `${y}` };
-  } else if (r < 73) {
-    // 2015-2017: 5% across 3 years
-    const yrs = [2015, 2016, 2017];
-    const y = yrs[Math.min(Math.floor((r - 68) * 3 / 5), 2)];
-    result = { type: CATEGORY_TYPES.YEAR_EXACT, value: y, label: `${y}` };
-  } else if (r < 83) {
-    // 2018-2020: 10% across 3 years
-    const yrs = [2018, 2019, 2020];
-    const y = yrs[Math.min(Math.floor((r - 73) * 3 / 10), 2)];
-    result = { type: CATEGORY_TYPES.YEAR_EXACT, value: y, label: `${y}` };
+  // Four proportional ranges — degenerate ones (start >= end) are dropped.
+  const rangeCands = [
+    { v: [yr(0.118), yr(0.706)], w: 15 },
+    { v: [yr(0.765), eraEnd],    w: 20 },
+    { v: [eraStart, yr(0.471)],  w:  5 },
+    { v: [yr(0.529), eraEnd],    w:  5 },
+  ].filter(c => c.v[0] < c.v[1]);
+
+  // Exact years, recency-weighted from most recent backward.
+  const yearCands = [];
+  const addYrs = (fromEnd, count, totalW) => {
+    const n = Math.min(count, Math.max(0, span + 1 - fromEnd));
+    if (n === 0 || totalW === 0) return;
+    for (let i = 0; i < n; i++)
+      yearCands.push({ y: eraEnd - fromEnd - i, w: totalW / n });
+  };
+  addYrs(0,  1, 10);
+  addYrs(1,  1, 10);
+  addYrs(2,  3, 17);
+  addYrs(5,  3, 10);
+  addYrs(8,  3,  5);
+  const olderCount = Math.max(0, span - 10);
+  if (olderCount > 0) addYrs(11, olderCount, 3);
+
+  const rangeTotal = rangeCands.reduce((s, c) => s + c.w, 0);
+  const yearTotal  = yearCands.reduce((s, c) => s + c.w, 0);
+  const total = rangeTotal + yearTotal;
+
+  if (total === 0)
+    return { type: CATEGORY_TYPES.YEAR_RANGE, value: [eraStart, eraEnd], label: `${eraStart} to ${eraEnd}` };
+
+  const r = Math.random() * total;
+  let result = null;
+
+  if (r < rangeTotal) {
+    let acc = 0;
+    for (const c of rangeCands) {
+      acc += c.w;
+      if (r < acc) { result = { type: CATEGORY_TYPES.YEAR_RANGE, value: c.v, label: `${c.v[0]} to ${c.v[1]}` }; break; }
+    }
   } else {
-    // 2021-2023: remaining 17% across 3 years
-    const yrs = [2021, 2022, 2023];
-    const y = yrs[Math.min(Math.floor((r - 83) * 3 / 17), 2)];
-    result = { type: CATEGORY_TYPES.YEAR_EXACT, value: y, label: `${y}` };
+    let acc = rangeTotal;
+    for (const c of yearCands) {
+      acc += c.w;
+      if (r < acc) { result = { type: CATEGORY_TYPES.YEAR_EXACT, value: c.y, label: `${c.y}` }; break; }
+    }
   }
 
-  // Single-team constraint: exact years before 2024 must fall back to a range.
-  // Redistribute proportionally among all 4 ranges (weights 15:20:5:5 → total 45).
-  if (teamSelected && result.type === CATEGORY_TYPES.YEAR_EXACT && result.value < 2024) {
-    const rr = Math.random() * 45;
-    if (rr < 15) return { type: CATEGORY_TYPES.YEAR_RANGE, value: [2010, 2020], label: "2010 to 2020" };
-    if (rr < 35) return { type: CATEGORY_TYPES.YEAR_RANGE, value: [2021, 2025], label: "2021 to 2025" };
-    if (rr < 40) return { type: CATEGORY_TYPES.YEAR_RANGE, value: [2008, 2016], label: "2008 to 2016" };
-    return { type: CATEGORY_TYPES.YEAR_RANGE, value: [2017, 2025], label: "2017 to 2025" };
+  result = result ?? { type: CATEGORY_TYPES.YEAR_RANGE, value: [eraStart, eraEnd], label: `${eraStart} to ${eraEnd}` };
+
+  // Single-team constraint: only the last year of the era may be exact alongside a
+  // specific team (same rule as original: value < eraEnd - 1 falls back to a range).
+  if (teamSelected && result.type === CATEGORY_TYPES.YEAR_EXACT && result.value < eraEnd - 1) {
+    const eligible = rangeCands.filter(c => c.v[0] < c.v[1]);
+    const total2 = eligible.reduce((s, c) => s + c.w, 0);
+    if (total2 > 0) {
+      const rr = Math.random() * total2;
+      let acc = 0;
+      for (const c of eligible) {
+        acc += c.w;
+        if (rr < acc) return { type: CATEGORY_TYPES.YEAR_RANGE, value: c.v, label: `${c.v[0]} to ${c.v[1]}` };
+      }
+    }
   }
 
   return result;
@@ -272,6 +300,14 @@ export function generatePuzzle(playerSeasons, pitcherSeasons = [], numRows = 5, 
     ? pitcherSeasons
     : playerSeasons.filter(ps => ps.pos !== "P");
 
+  // Derive era bounds from the pool so year categories stay within the active filter.
+  let eraStart = Infinity, eraEnd = -Infinity;
+  for (const ps of seasonPool) {
+    if (ps.year < eraStart) eraStart = ps.year;
+    if (ps.year > eraEnd)   eraEnd   = ps.year;
+  }
+  if (!isFinite(eraStart)) { eraStart = 2008; eraEnd = 2025; }
+
   const availableTeams = getAvailableTeams(seasonPool);
   const rows = [];
   // Track accepted rows as category triples for AND-based overlap detection.
@@ -291,7 +327,7 @@ export function generatePuzzle(playerSeasons, pitcherSeasons = [], numRows = 5, 
     // Primary loop: 150 attempts at a valid, non-overlapping row
     for (let attempt = 0; attempt < 150; attempt++) {
       const c1 = genCol1(availableTeams);
-      const c2 = genCol2(c1.type === CATEGORY_TYPES.TEAM);
+      const c2 = genCol2(eraStart, eraEnd, c1.type === CATEGORY_TYPES.TEAM);
       const c3 = isPitcherPuzzle ? genPitcherCol3() : genCol3();
       const cats = [c1, c2, c3];
 
@@ -299,7 +335,9 @@ export function generatePuzzle(playerSeasons, pitcherSeasons = [], numRows = 5, 
       if (usedRows.some(existing => rowsOverlap(existing, cats))) continue;
 
       const matches = findMatchingSeasons(cats, seasonPool);
-      if (matches.length >= 3 && matches.length <= 15) {
+      // Single-year rows require at least 8 valid answers to keep them fair.
+      const minCount = cats[1].type === CATEGORY_TYPES.YEAR_EXACT ? 8 : 3;
+      if (matches.length >= minCount && matches.length <= 15) {
         bestRow = { categories: cats, validAnswers: matches };
         break;
       }
@@ -310,12 +348,13 @@ export function generatePuzzle(playerSeasons, pitcherSeasons = [], numRows = 5, 
       for (let fb = 0; fb < 30; fb++) {
         const cats = [
           { type: CATEGORY_TYPES.ALL_TEAMS, value: "all", label: "MLB" },
-          genCol2(),
+          genCol2(eraStart, eraEnd),
           isPitcherPuzzle ? genPitcherCol3() : genCol3(),
         ];
         if (usedRows.some(existing => rowsOverlap(existing, cats))) continue;
         const matches = findMatchingSeasons(cats, seasonPool);
-        if (matches.length >= 3) {
+        const minCount = cats[1].type === CATEGORY_TYPES.YEAR_EXACT ? 8 : 3;
+        if (matches.length >= minCount) {
           bestRow = { categories: cats, validAnswers: matches };
           break;
         }
@@ -328,9 +367,13 @@ export function generatePuzzle(playerSeasons, pitcherSeasons = [], numRows = 5, 
       const fallbackC3 = isPitcherPuzzle
         ? { type: CATEGORY_TYPES.STAT_THRESHOLD, value: { stat: "GS", min: 20 }, label: "SP (20+ GS)" }
         : { type: CATEGORY_TYPES.BATS, value: "R", label: "Right" };
+      // Use a proportional mid-era range (same as range A in genCol2) for maximum coverage.
+      const fbStart = eraStart + Math.round((eraEnd - eraStart) * 0.118);
+      const fbEnd   = eraStart + Math.round((eraEnd - eraStart) * 0.706);
+      const fbRange = fbStart < fbEnd ? [fbStart, fbEnd] : [eraStart, eraEnd];
       const cats = [
         { type: CATEGORY_TYPES.ALL_TEAMS, value: "all", label: "MLB" },
-        { type: CATEGORY_TYPES.YEAR_RANGE, value: [2010, 2020], label: "2010 to 2020" },
+        { type: CATEGORY_TYPES.YEAR_RANGE, value: fbRange, label: `${fbRange[0]} to ${fbRange[1]}` },
         fallbackC3,
       ];
       bestRow = { categories: cats, validAnswers: findMatchingSeasons(cats, seasonPool) };
