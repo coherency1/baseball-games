@@ -8,6 +8,9 @@ import {
 import PinpointChallenge from "./PinpointChallenge.jsx";
 import { parseCSVText, buildPlayerSeasons, buildPitcherSeasons } from "./lahmanLoader.js";
 
+// Strip diacritics so "acuna" matches "Acuña", "pena" matches "Peña", etc.
+const deburr = s => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+
 // =====================================================================
 // DATA LOADING — Lahman CSVs (public/lahman-folder/)
 // =====================================================================
@@ -235,7 +238,7 @@ function PlayerSearchModal({ seasons, fixedYear = null, onSelect, onClose }) {
   }, [seasons]);
 
   const allFiltered = query.length >= 2
-    ? playerIndex.filter(p => p.name.toLowerCase().includes(query.toLowerCase()))
+    ? playerIndex.filter(p => deburr(p.name.toLowerCase()).includes(deburr(query.toLowerCase())))
     : [];
   const filtered = allFiltered.slice(0, 15);
 

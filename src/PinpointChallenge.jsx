@@ -1,5 +1,8 @@
 import { useState, useEffect, useRef, useMemo } from "react";
 
+// Strip diacritics so "acuna" matches "Acuña", "pena" matches "Peña", etc.
+const deburr = s => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+
 // ─────────────────────────────────────────────────────────────────────────────
 // DATA — derived directly from playerSeasons (no separate fetch needed)
 // ─────────────────────────────────────────────────────────────────────────────
@@ -87,17 +90,17 @@ function buildPlayerNamesByType(leaderboards) {
 
 function getSuggestions(allNames, query) {
   if (query.trim().length < 2) return [];
-  const q = query.toLowerCase().trim();
+  const q = deburr(query.toLowerCase().trim());
   const scored = allNames
     .filter(name => {
-      const n = name.toLowerCase();
+      const n = deburr(name.toLowerCase());
       if (n.startsWith(q)) return true;
       if (n.includes(q)) return true;
       const parts = n.split(" ");
       return parts.length > 1 && parts[parts.length - 1].startsWith(q);
     })
     .map(name => {
-      const n = name.toLowerCase();
+      const n = deburr(name.toLowerCase());
       const score = n.startsWith(q) ? 0 : n.includes(q) ? 1 : 2;
       return { name, score };
     })
@@ -516,7 +519,7 @@ export default function PinpointChallenge({ playerSeasons = [] }) {
   }, [query, playerNamesByType, category]);
 
   const guessedNames = useMemo(
-    () => new Set(guesses.map(g => g.name.toLowerCase())),
+    () => new Set(guesses.map(g => deburr(g.name.toLowerCase()))),
     [guesses]
   );
 
@@ -524,8 +527,8 @@ export default function PinpointChallenge({ playerSeasons = [] }) {
     if (!playerName || !playerName.trim() || !category || gameOver) return;
     const name = playerName.trim();
 
-    // Duplicate guard
-    if (guessedNames.has(name.toLowerCase())) {
+    // Duplicate guard (accent-folded so "acuna" == "Acuña")
+    if (guessedNames.has(deburr(name.toLowerCase()))) {
       setQuery("");
       setSuggestions([]);
       setDupFlash(true);
@@ -536,9 +539,9 @@ export default function PinpointChallenge({ playerSeasons = [] }) {
     setQuery("");
     setSuggestions([]);
 
-    // Lookup in current category (case-insensitive)
+    // Lookup in current category (case- and accent-insensitive)
     const match = category.players.find(
-      p => p.name.toLowerCase() === name.toLowerCase()
+      p => deburr(p.name.toLowerCase()) === deburr(name.toLowerCase())
     );
 
     if (match && match.rank <= 100) {
