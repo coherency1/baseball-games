@@ -1,30 +1,58 @@
 import { useState, useEffect, useRef, useMemo } from "react";
 
 // ─────────────────────────────────────────────────────────────────────────────
-// DATA HOOK
+// DATA — derived directly from playerSeasons (no separate fetch needed)
 // ─────────────────────────────────────────────────────────────────────────────
-function useLeaderboardData() {
-  const [leaderboards, setLeaderboards] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+function buildLeaderboardsFromData(playerSeasons, topN = 150) {
+  if (!playerSeasons.length) return [];
 
-  useEffect(() => {
-    fetch("/leaderboard_data.json")
-      .then(r => {
-        if (!r.ok) throw new Error(`HTTP ${r.status}`);
-        return r.json();
-      })
-      .then(d => {
-        setLeaderboards(d.categories || []);
-        setLoading(false);
-      })
-      .catch(e => {
-        setError(e.message);
-        setLoading(false);
-      });
-  }, []);
+  const years = [...new Set(playerSeasons.map(p => p.year))].sort((a, b) => a - b);
+  const era   = `${years[0]}–${years[years.length - 1]}`;
 
-  return { leaderboards, loading, error };
+  const batters  = playerSeasons.filter(ps => ps.pos !== "P");
+  const pitchers = playerSeasons.filter(ps => ps.pos === "P");
+
+  function aggregate(seasons, statKeys) {
+    const map = {};
+    for (const ps of seasons) {
+      if (!map[ps.name]) map[ps.name] = Object.fromEntries(statKeys.map(k => [k, 0]));
+      for (const k of statKeys) map[ps.name][k] += ps[k] || 0;
+    }
+    return map;
+  }
+
+  const batMap = aggregate(batters,  ["HR","RBI","R","H","SB","BB","2B","3B","WAR"]);
+  const pitMap = aggregate(pitchers, ["SO"]);
+
+  function makeRanked(careerMap, stat, roundDec = 0) {
+    return Object.entries(careerMap)
+      .sort(([, a], [, b]) => b[stat] - a[stat])
+      .slice(0, topN)
+      .map(([name, s], i) => ({
+        rank:  i + 1,
+        name,
+        value: roundDec ? Math.round(s[stat] * 10 ** roundDec) / 10 ** roundDec
+                        : Math.round(s[stat]),
+      }));
+  }
+
+  const cat = (id, label, stat, statType, careerMap, roundDec = 0) => ({
+    id, label, era, stat, statLabel: stat, statType, minimum: null,
+    players: makeRanked(careerMap, stat, roundDec),
+  });
+
+  return [
+    cat("all_time_hr",       "Home Run Leaders",             "HR",  "batting",  batMap),
+    cat("all_time_rbi",      "RBI Leaders",                  "RBI", "batting",  batMap),
+    cat("all_time_hits",     "Hits Leaders",                 "H",   "batting",  batMap),
+    cat("all_time_runs",     "Runs Scored Leaders",          "R",   "batting",  batMap),
+    cat("all_time_bb_bat",   "Walks Leaders (Batters)",      "BB",  "batting",  batMap),
+    cat("all_time_sb",       "Stolen Base Leaders",          "SB",  "batting",  batMap),
+    cat("all_time_2b",       "Doubles Leaders",              "2B",  "batting",  batMap),
+    cat("all_time_3b",       "Triples Leaders",              "3B",  "batting",  batMap),
+    cat("all_time_war_bat",  "WAR Leaders (Batters)",        "WAR", "batting",  batMap, 1),
+    cat("all_time_so_pitch", "Strikeout Leaders (Pitchers)", "SO",  "pitching", pitMap),
+  ];
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -428,9 +456,8 @@ function GameOverCard({ guesses, strikes, score, onPlayAgain }) {
 // ─────────────────────────────────────────────────────────────────────────────
 // MAIN COMPONENT
 // ─────────────────────────────────────────────────────────────────────────────
-export default function PinpointChallenge() {
-  const { leaderboards, loading, error } = useLeaderboardData();
-
+export default function PinpointChallenge({ playerSeasons = [] }) {
+  const leaderboards     = useMemo(() => buildLeaderboardsFromData(playerSeasons), [playerSeasons]);
   const playerNamesByType = useMemo(() => buildPlayerNamesByType(leaderboards), [leaderboards]);
 
   const [category, setCategory]         = useState(null);
@@ -531,29 +558,6 @@ export default function PinpointChallenge() {
     setSuggestions([]);
     setDupFlash(false);
   };
-
-  // ── Loading / error ──────────────────────────────────────────
-  if (loading) {
-    return (
-      <div style={{ padding: "48px 0", textAlign: "center", color: "rgba(255,255,255,0.35)" }}>
-        Loading leaderboards...
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div style={{ padding: "48px 0", textAlign: "center" }}>
-        <div style={{ color: "#ef4444", marginBottom: "8px", fontSize: "15px" }}>
-          Failed to load leaderboard data
-        </div>
-        <div style={{ fontSize: "12px", color: "rgba(255,255,255,0.3)", lineHeight: 1.7 }}>
-          Run the data generator first:<br />
-          <code style={{ color: "#a78bfa" }}>python scripts/generate_leaderboards.py</code>
-        </div>
-      </div>
-    );
-  }
 
   if (!category) return null;
 

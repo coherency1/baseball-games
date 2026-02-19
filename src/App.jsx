@@ -492,7 +492,7 @@ export default function App() {
             )}
           </>
         ) : (
-          <PinpointChallenge />
+          <PinpointChallenge playerSeasons={playerSeasons} />
         )}
       </div>
     </div>
