@@ -490,14 +490,12 @@ export default function PinpointChallenge({ playerSeasons = [] }) {
   };
 
   // On initial data load: pick random category.
-  // On filter change (leaderboards rebuilt): keep the same category id,
-  // falling back to random if it no longer exists, and reset game state.
+  // On filter change (leaderboards rebuilt): always pick a NEW random category
+  // (excluding the current one) so the full player-pool reload is obvious to the user.
   useEffect(() => {
     if (leaderboards.length === 0) return;
     const prevId = currentCatIdRef.current;
-    const cat = prevId
-      ? (leaderboards.find(lb => lb.id === prevId) ?? pickRandomCategory(leaderboards))
-      : pickRandomCategory(leaderboards);
+    const cat = pickRandomCategory(leaderboards, prevId ?? undefined);
     changeCategory(cat);
     if (prevId) {
       setGuesses([]);
