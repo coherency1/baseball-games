@@ -58,7 +58,25 @@ function DataFilterPanel({ settings, onChange, recordCount }) {
   const [open, setOpen] = useState(false);
   const { startYear, endYear, minPA } = settings;
 
-  const set = (key, val) => onChange({ ...settings, [key]: val });
+  // Local draft state so year/minPA inputs don't reset the game on every keystroke.
+  // Drafts are committed (and a new game triggered) only when the input loses focus.
+  const [draftStart, setDraftStart] = useState(startYear);
+  const [draftEnd,   setDraftEnd]   = useState(endYear);
+  const [draftMinPA, setDraftMinPA] = useState(minPA);
+
+  // Keep drafts in sync when an era preset is clicked (updates come from parent).
+  useEffect(() => { setDraftStart(startYear); }, [startYear]);
+  useEffect(() => { setDraftEnd(endYear); },     [endYear]);
+  useEffect(() => { setDraftMinPA(minPA); },     [minPA]);
+
+  const commit = () => {
+    const s = Math.min(Math.max(draftStart, 1871), draftEnd);
+    const e = Math.max(Math.min(draftEnd, 2025), s);
+    const p = Math.max(1, draftMinPA);
+    if (s !== startYear || e !== endYear || p !== minPA) {
+      onChange({ ...settings, startYear: s, endYear: e, minPA: p });
+    }
+  };
 
   const activePreset = ERA_PRESETS.find(
     p => p.startYear === startYear && p.endYear === endYear
@@ -96,7 +114,7 @@ function DataFilterPanel({ settings, onChange, recordCount }) {
           marginTop: "10px", padding: "14px 16px", borderRadius: "10px",
           background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)",
         }}>
-          {/* Era presets */}
+          {/* Era presets — apply immediately, triggering a new game */}
           <div style={{ marginBottom: "12px" }}>
             <div style={{ fontSize: "10px", fontWeight: 700, color: "rgba(255,255,255,0.3)", letterSpacing: "0.08em", marginBottom: "6px" }}>ERA PRESET</div>
             <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
@@ -119,29 +137,32 @@ function DataFilterPanel({ settings, onChange, recordCount }) {
             </div>
           </div>
 
-          {/* Custom year range */}
+          {/* Custom year range — commits on blur to avoid mid-type reloads */}
           <div style={{ display: "flex", gap: "16px", alignItems: "flex-end", flexWrap: "wrap" }}>
             <div>
               <div style={{ fontSize: "10px", fontWeight: 700, color: "rgba(255,255,255,0.3)", letterSpacing: "0.08em", marginBottom: "4px" }}>START YEAR</div>
               <input
-                type="number" min={1871} max={endYear} value={startYear}
-                onChange={e => set("startYear", Math.min(+e.target.value, endYear))}
+                type="number" min={1871} max={draftEnd} value={draftStart}
+                onChange={e => setDraftStart(+e.target.value)}
+                onBlur={commit}
                 style={inputStyle}
               />
             </div>
             <div>
               <div style={{ fontSize: "10px", fontWeight: 700, color: "rgba(255,255,255,0.3)", letterSpacing: "0.08em", marginBottom: "4px" }}>END YEAR</div>
               <input
-                type="number" min={startYear} max={2025} value={endYear}
-                onChange={e => set("endYear", Math.max(+e.target.value, startYear))}
+                type="number" min={draftStart} max={2025} value={draftEnd}
+                onChange={e => setDraftEnd(+e.target.value)}
+                onBlur={commit}
                 style={inputStyle}
               />
             </div>
             <div>
               <div style={{ fontSize: "10px", fontWeight: 700, color: "rgba(255,255,255,0.3)", letterSpacing: "0.08em", marginBottom: "4px" }}>MIN PA</div>
               <input
-                type="number" min={1} max={700} value={minPA}
-                onChange={e => set("minPA", Math.max(1, +e.target.value))}
+                type="number" min={1} max={700} value={draftMinPA}
+                onChange={e => setDraftMinPA(+e.target.value)}
+                onBlur={commit}
                 style={{ ...inputStyle, width: "70px" }}
               />
             </div>
@@ -556,6 +577,8 @@ export default function App() {
       setPuzzle(generatePuzzle(playerSeasons, pitcherSeasons, 5));
       setSubmissions({});
       setWrongAttempts({});
+      setRetryMode(false);
+      setActiveRow(null);
     }
   }, [playerSeasons, pitcherSeasons]);
 
