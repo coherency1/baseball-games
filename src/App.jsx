@@ -495,6 +495,14 @@ export default function App() {
     raw ? buildPlayerSeasons(raw.people, raw.batting, raw.fielding, settings) : [],
     [raw, settings]
   );
+
+  // Pinpoint needs career-accurate totals: include all stints regardless of PA
+  // so short partial seasons (e.g. Ruiz's 2025 LAD cup with 4 SB in 23 PA)
+  // aren't silently dropped from leaderboard aggregates.
+  const pinpointSeasons = useMemo(() =>
+    raw ? buildPlayerSeasons(raw.people, raw.batting, raw.fielding, { ...settings, minPA: 1 }) : [],
+    [raw, settings]
+  );
   const loading = csvLoading;
 
   const [puzzle, setPuzzle] = useState(null);
@@ -636,7 +644,7 @@ export default function App() {
             )}
           </>
         ) : (
-          <PinpointChallenge playerSeasons={playerSeasons} />
+          <PinpointChallenge playerSeasons={pinpointSeasons} />
         )}
       </div>
     </div>
