@@ -234,6 +234,16 @@ function PlayerSearchModal({ seasons, onSelect, onClose }) {
     ? [...new Set(seasons.filter(ps => ps.name === selectedPlayer).map(ps => ps.year))].sort((a,b)=>b-a)
     : [];
 
+  // If the player appears in only one year, skip the year-pick step entirely.
+  const handleSelectPlayer = (name) => {
+    const years = [...new Set(seasons.filter(ps => ps.name === name).map(ps => ps.year))];
+    if (years.length === 1) {
+      onSelect(name, years[0]);
+    } else {
+      setSelectedPlayer(name);
+    }
+  };
+
   return (
     <div style={{ position:"fixed",inset:0,background:"rgba(0,0,0,0.8)",zIndex:1000,display:"flex",alignItems:"center",justifyContent:"center",padding:"20px" }} onClick={onClose}>
       <div style={{ background:"#1a1d23",borderRadius:"16px",width:"100%",maxWidth:"400px",overflow:"hidden",border:"1px solid rgba(255,255,255,0.1)" }} onClick={e=>e.stopPropagation()}>
@@ -250,7 +260,7 @@ function PlayerSearchModal({ seasons, onSelect, onClose }) {
           </div>
           <div style={{ maxHeight:"300px",overflowY:"auto" }}>
             {filtered.map(p => (
-              <div key={p.name} onClick={()=>setSelectedPlayer(p.name)} style={{ display:"flex",justifyContent:"space-between",alignItems:"center",padding:"12px 20px",cursor:"pointer",borderBottom:"1px solid rgba(255,255,255,0.05)" }}
+              <div key={p.name} onClick={()=>handleSelectPlayer(p.name)} style={{ display:"flex",justifyContent:"space-between",alignItems:"center",padding:"12px 20px",cursor:"pointer",borderBottom:"1px solid rgba(255,255,255,0.05)" }}
                 onMouseOver={e=>e.currentTarget.style.background="rgba(255,255,255,0.05)"} onMouseOut={e=>e.currentTarget.style.background="transparent"}>
                 <span style={{ color:"#fff",fontSize:"15px",fontWeight:500 }}>{p.name}</span>
                 <span style={{ color:"rgba(255,255,255,0.35)",fontSize:"13px" }}>{p.minYear} - {p.maxYear}</span>
