@@ -160,6 +160,9 @@ def main():
                         help="First season to include (default: 1871)")
     parser.add_argument("--end",    type=int, default=2025,
                         help="Last season to include (default: 2025)")
+    parser.add_argument("--since",  type=int, default=None,
+                        help="Shorthand for --start YEAR; sets era label to 'Since YEAR'. "
+                             "E.g. --since 2000 builds a modern-era leaderboard.")
     parser.add_argument("--top",    type=int, default=150,
                         help="Players per category (default: 150)")
     parser.add_argument("--local-dir", default=None, dest="local_dir",
@@ -168,13 +171,18 @@ def main():
                              "https://sabr.org/lahman-database/")
     args = parser.parse_args()
 
+    # --since overrides --start and sets a friendlier era label
+    if args.since is not None:
+        args.start = args.since
+        era_label = f"Since {args.since} ({args.since}–{args.end})"
+    else:
+        era_label = f"All-Time ({args.start}–{args.end})"
+
     try:
         import pandas as pd
     except ImportError:
         print("ERROR: Run:  pip install pandas")
         sys.exit(1)
-
-    era_label = f"All-Time ({args.start}–{args.end})"
 
     print("=" * 60)
     print("Pinpoint Challenge — Leaderboard Data Generator (Lahman)")

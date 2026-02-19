@@ -37,10 +37,17 @@ function pickRandomCategory(categories, excludeId = null) {
   return pool[Math.floor(Math.random() * pool.length)];
 }
 
-function buildAllPlayerNames(leaderboards) {
-  const nameSet = new Set();
-  leaderboards.forEach(cat => cat.players.forEach(p => nameSet.add(p.name)));
-  return Array.from(nameSet).sort();
+function buildPlayerNamesByType(leaderboards) {
+  const batting = new Set();
+  const pitching = new Set();
+  leaderboards.forEach(cat => {
+    const target = cat.statType === "pitching" ? pitching : batting;
+    cat.players.forEach(p => target.add(p.name));
+  });
+  return {
+    batting:  Array.from(batting).sort(),
+    pitching: Array.from(pitching).sort(),
+  };
 }
 
 function getSuggestions(allNames, query) {
@@ -424,7 +431,7 @@ function GameOverCard({ guesses, strikes, score, onPlayAgain }) {
 export default function PinpointChallenge() {
   const { leaderboards, loading, error } = useLeaderboardData();
 
-  const allPlayerNames = useMemo(() => buildAllPlayerNames(leaderboards), [leaderboards]);
+  const playerNamesByType = useMemo(() => buildPlayerNamesByType(leaderboards), [leaderboards]);
 
   const [category, setCategory]         = useState(null);
   const [lastCategoryId, setLastCatId]  = useState(null);
@@ -447,10 +454,13 @@ export default function PinpointChallenge() {
     }
   }, [leaderboards]);
 
-  // Autocomplete suggestions
+  // Autocomplete suggestions — scoped to the current category's statType
   useEffect(() => {
-    setSuggestions(getSuggestions(allPlayerNames, query));
-  }, [query, allPlayerNames]);
+    const names = category?.statType === "pitching"
+      ? playerNamesByType.pitching
+      : playerNamesByType.batting;
+    setSuggestions(getSuggestions(names, query));
+  }, [query, playerNamesByType, category]);
 
   const guessedNames = useMemo(
     () => new Set(guesses.map(g => g.name.toLowerCase())),
