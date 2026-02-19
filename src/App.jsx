@@ -223,7 +223,7 @@ function PlayerSearchModal({ seasons, onSelect, onClose }) {
       map[ps.name].maxYear = Math.max(map[ps.name].maxYear, ps.year);
     });
     return Object.values(map);
-  }, [playerSeasons]);
+  }, [seasons]);
 
   const allFiltered = query.length >= 2
     ? playerIndex.filter(p => p.name.toLowerCase().includes(query.toLowerCase()))
