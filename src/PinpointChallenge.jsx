@@ -25,15 +25,22 @@ function buildLeaderboardsFromData(playerSeasons, topN = 150) {
   const pitMap = aggregate(pitchers, ["SO"]);
 
   function makeRanked(careerMap, stat, roundDec = 0) {
-    return Object.entries(careerMap)
+    const sorted = Object.entries(careerMap)
       .sort(([, a], [, b]) => b[stat] - a[stat])
       .slice(0, topN)
-      .map(([name, s], i) => ({
-        rank:  i + 1,
+      .map(([name, s]) => ({
         name,
         value: roundDec ? Math.round(s[stat] * 10 ** roundDec) / 10 ** roundDec
                         : Math.round(s[stat]),
       }));
+
+    // Competition ranking (1224): players with the same stat value share the same rank.
+    // Ranks after a tied group skip accordingly (two at #1 → next is #3).
+    let rank = 1;
+    return sorted.map((entry, i) => {
+      if (i > 0 && entry.value !== sorted[i - 1].value) rank = i + 1;
+      return { rank, name: entry.name, value: entry.value };
+    });
   }
 
   const cat = (id, label, stat, statType, careerMap, roundDec = 0) => ({

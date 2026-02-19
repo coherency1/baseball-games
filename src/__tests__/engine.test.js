@@ -304,8 +304,8 @@ describe("findMatchingSeasons", () => {
 // ─── SCORING_STATS ────────────────────────────────────────────────────────────
 
 describe("SCORING_STATS", () => {
-  it("has 9 stat categories", () => {
-    expect(SCORING_STATS).toHaveLength(9);
+  it("has 13 stat categories (8 batting + 5 pitching)", () => {
+    expect(SCORING_STATS).toHaveLength(13);
   });
 
   it("each entry has key and label", () => {

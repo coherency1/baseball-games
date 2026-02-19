@@ -47,6 +47,70 @@ export function parseCSVText(raw) {
   return rows;
 }
 
+// ── Pitcher season transform ──────────────────────────────────────────────────
+// Builds one record per pitcher-team-stint from Pitching.csv + People.csv.
+// minIP filters out garbage-time appearances (default: 10 innings pitched).
+export function buildPitcherSeasons(people, pitching, settings) {
+  const { startYear, endYear, minIP = 10 } = settings;
+
+  // People.csv → name + throws hand
+  const nameMap = {}, throwsMap = {};
+  for (const row of people) {
+    const pid = row.playerID;
+    if (!pid) continue;
+    nameMap[pid] = `${(row.nameFirst || "").trim()} ${(row.nameLast || "").trim()}`.trim();
+    throwsMap[pid] = (row.throws || "").trim().toUpperCase() || "R";
+  }
+
+  const records = [];
+  for (const row of pitching) {
+    const year = +row.yearID;
+    if (year < startYear || year > endYear) continue;
+
+    const gameTeam = LAHMAN_TO_GAME[row.teamID];
+    if (!gameTeam) continue;           // defunct franchise
+
+    const name = nameMap[row.playerID];
+    if (!name) continue;
+
+    const ipOuts = +row.IPouts || 0;
+    const ip = +(ipOuts / 3).toFixed(1);
+    if (ip < minIP) continue;
+
+    const so  = +row.SO  || 0;
+    const bb  = +row.BB  || 0;
+    const w   = +row.W   || 0;
+    const l   = +row.L   || 0;
+    const er  = +row.ER  || 0;
+    const h   = +row.H   || 0;
+    const sv  = +row.SV  || 0;
+    const g   = +row.G   || 0;
+    const gs  = +row.GS  || 0;
+    const hr  = +row.HR  || 0;
+    const hbp = +row.HBP || 0;
+
+    const era  = ip > 0 ? +(er / ip * 9).toFixed(2) : 0;
+    const whip = ip > 0 ? +((bb + h) / ip).toFixed(3) : 0;
+    const k9   = ip > 0 ? +(so / ip * 9).toFixed(1) : 0;
+    const bb9  = ip > 0 ? +(bb / ip * 9).toFixed(1) : 0;
+
+    records.push({
+      name,
+      team: gameTeam,
+      year,
+      pos: "P",
+      throws: throwsMap[row.playerID] || "R",
+      // counting
+      W: w, L: l, SV: sv, SO: so, BB: bb, H: h, HR: hr, HBP: hbp,
+      G: g, GS: gs, IP: ip, ER: er,
+      // rate (need ≥1 IP for these to be meaningful)
+      ERA: era, WHIP: whip, "K/9": k9, "BB/9": bb9,
+    });
+  }
+
+  return records;
+}
+
 // ── Main transform ────────────────────────────────────────────────────────────
 // Takes pre-parsed CSV row arrays + settings; returns the player-season array
 // the rest of the app uses. Cheap to re-run when only settings change because
@@ -60,7 +124,7 @@ export function buildPlayerSeasons(people, batting, fielding, settings) {
     const pid = row.playerID;
     if (!pid) continue;
     nameMap[pid] = `${(row.nameFirst || "").trim()} ${(row.nameLast || "").trim()}`.trim();
-    batsMap[pid] = BATS_NORM[row.bats] || "R";
+    batsMap[pid] = BATS_NORM[(row.bats || "").trim().toUpperCase()] || "R";
   }
 
   // Fielding.csv → primary position per (playerID, yearID, teamID)

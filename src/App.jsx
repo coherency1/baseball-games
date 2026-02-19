@@ -6,7 +6,7 @@ import {
   generatePuzzle, computePercentile, getTier,
 } from "./engine.js";
 import PinpointChallenge from "./PinpointChallenge.jsx";
-import { parseCSVText, buildPlayerSeasons } from "./lahmanLoader.js";
+import { parseCSVText, buildPlayerSeasons, buildPitcherSeasons } from "./lahmanLoader.js";
 
 // =====================================================================
 // DATA LOADING — Lahman CSVs (public/lahman-folder/)
@@ -26,12 +26,14 @@ function useLahmanData() {
       fetch(`${base}/People.csv`).then(r => r.text()),
       fetch(`${base}/Batting.csv`).then(r => r.text()),
       fetch(`${base}/Fielding.csv`).then(r => r.text()),
+      fetch(`${base}/Pitching.csv`).then(r => r.text()),
     ])
-      .then(([p, b, f]) => {
+      .then(([p, b, f, pit]) => {
         setRaw({
           people:   parseCSVText(p),
           batting:  parseCSVText(b),
           fielding: parseCSVText(f),
+          pitching: parseCSVText(pit),
         });
         setCsvLoading(false);
       })
@@ -206,7 +208,7 @@ function MlbLogo({ size = 44 }) {
 }
 
 // -- Player Search Modal --
-function PlayerSearchModal({ playerSeasons, onSelect, onClose }) {
+function PlayerSearchModal({ seasons, onSelect, onClose }) {
   const [query, setQuery] = useState("");
   const [selectedPlayer, setSelectedPlayer] = useState(null);
   const [selectedYear, setSelectedYear] = useState(null);
@@ -215,7 +217,7 @@ function PlayerSearchModal({ playerSeasons, onSelect, onClose }) {
 
   const playerIndex = useMemo(() => {
     const map = {};
-    playerSeasons.forEach(ps => {
+    seasons.forEach(ps => {
       if (!map[ps.name]) map[ps.name] = { name:ps.name, minYear:ps.year, maxYear:ps.year };
       map[ps.name].minYear = Math.min(map[ps.name].minYear, ps.year);
       map[ps.name].maxYear = Math.max(map[ps.name].maxYear, ps.year);
@@ -229,7 +231,7 @@ function PlayerSearchModal({ playerSeasons, onSelect, onClose }) {
   const filtered = allFiltered.slice(0, 15);
 
   const playerYears = selectedPlayer
-    ? [...new Set(playerSeasons.filter(ps => ps.name === selectedPlayer).map(ps => ps.year))].sort((a,b)=>b-a)
+    ? [...new Set(seasons.filter(ps => ps.name === selectedPlayer).map(ps => ps.year))].sort((a,b)=>b-a)
     : [];
 
   return (
@@ -322,9 +324,23 @@ function IncorrectCard({ playerName, year, reason, onClick, showingTop5 }) {
 
 function StatsPanel({ ps }) {
   if (!ps) return null;
-  const stats = [["H",ps.H],["2B",ps["2B"]],["3B",ps["3B"]],["HR",ps.HR],["RBI",ps.RBI],["R",ps.R],["XBH",ps.XBH],["SB",ps.SB],["AVG",ps.AVG?.toFixed(3)],["OBP",ps.OBP?.toFixed(3)],["SLG",ps.SLG?.toFixed(3)],["OPS",ps.OPS?.toFixed(3)],["wRC+",ps["wRC+"]],["WAR",ps.WAR]];
+  const stats = ps.pos === "P"
+    ? [
+        ["W",  ps.W],  ["L",  ps.L],  ["ERA", ps.ERA?.toFixed(2)],
+        ["SO", ps.SO], ["BB", ps.BB], ["IP",  ps.IP],
+        ["WHIP", ps.WHIP?.toFixed(3)], ["K/9", ps["K/9"]?.toFixed(1)],
+        ["SV", ps.SV], ["G",  ps.G],  ["GS",  ps.GS],
+      ]
+    : [
+        ["H",ps.H],["2B",ps["2B"]],["3B",ps["3B"]],["HR",ps.HR],
+        ["RBI",ps.RBI],["R",ps.R],["XBH",ps.XBH],["SB",ps.SB],
+        ["AVG",ps.AVG?.toFixed(3)],["OBP",ps.OBP?.toFixed(3)],
+        ["SLG",ps.SLG?.toFixed(3)],["OPS",ps.OPS?.toFixed(3)],
+        ["wRC+",ps["wRC+"]],["WAR",ps.WAR],
+      ];
+  const cols = ps.pos === "P" ? 6 : 7;
   return (
-    <div style={{ display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:"1px",background:"rgba(255,255,255,0.05)",borderRadius:"8px",overflow:"hidden",marginTop:"8px" }}>
+    <div style={{ display:"grid",gridTemplateColumns:`repeat(${cols},1fr)`,gap:"1px",background:"rgba(255,255,255,0.05)",borderRadius:"8px",overflow:"hidden",marginTop:"8px" }}>
       {stats.map(([l,v])=>(
         <div key={l} style={{ background:"#1a1d23",padding:"6px 4px",textAlign:"center" }}>
           <div style={{ fontSize:"9px",color:"rgba(255,255,255,0.35)",letterSpacing:"0.05em" }}>{l}</div>
@@ -336,9 +352,12 @@ function StatsPanel({ ps }) {
 }
 
 // -- Top 5 answers for a row --
-function Top5Panel({ validAnswers, scoringStatKey, scoringStatLabel }) {
+function Top5Panel({ validAnswers, scoringStatKey, scoringStatLabel, lowerIsBetter }) {
   const top5 = [...validAnswers]
-    .sort((a, b) => (b[scoringStatKey] || 0) - (a[scoringStatKey] || 0))
+    .filter(ps => (ps[scoringStatKey] ?? 0) > 0)
+    .sort((a, b) => lowerIsBetter
+      ? (a[scoringStatKey] || 0) - (b[scoringStatKey] || 0)
+      : (b[scoringStatKey] || 0) - (a[scoringStatKey] || 0))
     .slice(0, 5);
   const fmt = v => typeof v === "number" && v % 1 !== 0 ? v.toFixed(3) : (v ?? "-");
   return (
@@ -435,17 +454,18 @@ function CategoryDisplay({ category }) {
 }
 
 // -- Puzzle Row --
-function PuzzleRow({ row, rowIndex, scoringStat, submission, allRows, playerSeasons, onClickAdd, retryMode, wrongRowAttempts }) {
+function PuzzleRow({ row, rowIndex, scoringStat, submission, allRows, playerSeasons, pitcherSeasons, isPitcherPuzzle, onClickAdd, retryMode, wrongRowAttempts }) {
   const [showStats, setShowStats] = useState(false);
-  const percentile = submission?.correct ? computePercentile(submission.score, scoringStat.key, row) : 0;
-  const matchedSeason = submission?.correct ? playerSeasons.find(ps => ps.name===submission.playerName && ps.year===submission.year) : null;
+  const percentile = submission?.correct ? computePercentile(submission.score, scoringStat.key, row, scoringStat.lowerIsBetter) : 0;
+  const seasonPool = isPitcherPuzzle ? pitcherSeasons : playerSeasons;
+  const matchedSeason = submission?.correct ? seasonPool.find(ps => ps.name===submission.playerName && ps.year===submission.year) : null;
 
   if (submission?.correct) {
     return (
       <div style={{ marginBottom:"8px" }}>
         <ResultCard playerName={submission.playerName} year={submission.year} team={submission.team} score={submission.score} statLabel={scoringStat.label} percentile={percentile} onClick={()=>setShowStats(!showStats)} />
         {showStats && matchedSeason && <StatsPanel ps={matchedSeason} />}
-        {showStats && <Top5Panel validAnswers={row.validAnswers} scoringStatKey={scoringStat.key} scoringStatLabel={scoringStat.label} />}
+        {showStats && <Top5Panel validAnswers={row.validAnswers} scoringStatKey={scoringStat.key} scoringStatLabel={scoringStat.label} lowerIsBetter={scoringStat.lowerIsBetter} />}
       </div>
     );
   }
@@ -453,7 +473,7 @@ function PuzzleRow({ row, rowIndex, scoringStat, submission, allRows, playerSeas
     return (
       <div style={{ marginBottom:"8px" }}>
         <IncorrectCard playerName={submission.playerName} year={submission.year} reason={submission.reason} onClick={()=>setShowStats(!showStats)} showingTop5={showStats} />
-        {showStats && <Top5Panel validAnswers={row.validAnswers} scoringStatKey={scoringStat.key} scoringStatLabel={scoringStat.label} />}
+        {showStats && <Top5Panel validAnswers={row.validAnswers} scoringStatKey={scoringStat.key} scoringStatLabel={scoringStat.label} lowerIsBetter={scoringStat.lowerIsBetter} />}
       </div>
     );
   }
@@ -496,6 +516,12 @@ export default function App() {
     [raw, settings]
   );
 
+  // Pitcher seasons — min 10 IP to exclude mop-up garbage appearances
+  const pitcherSeasons = useMemo(() =>
+    raw?.pitching ? buildPitcherSeasons(raw.people, raw.pitching, { ...settings, minIP: 10 }) : [],
+    [raw, settings]
+  );
+
   // Pinpoint needs career-accurate totals: include all stints regardless of PA
   // so short partial seasons (e.g. Ruiz's 2025 LAD cup with 4 SB in 23 PA)
   // aren't silently dropped from leaderboard aggregates.
@@ -515,11 +541,11 @@ export default function App() {
 
   useEffect(() => {
     if (playerSeasons.length > 0) {
-      setPuzzle(generatePuzzle(playerSeasons, 5));
+      setPuzzle(generatePuzzle(playerSeasons, pitcherSeasons, 5));
       setSubmissions({});
       setWrongAttempts({});
     }
-  }, [playerSeasons]);
+  }, [playerSeasons, pitcherSeasons]);
 
   const totalScore = Object.values(submissions).reduce((s,sub) => s + (sub.correct ? sub.score : 0), 0);
   const totalGuesses = Object.keys(submissions).length
@@ -528,7 +554,13 @@ export default function App() {
   const handlePlayerSelect = (playerName, year) => {
     if (activeRow === null || !puzzle) return;
     const row = puzzle.rows[activeRow];
-    const ps = playerSeasons.find(p => p.name === playerName && p.year === year);
+    // Search the correct pool based on puzzle type (pitching vs. batting).
+    // A player traded mid-season has multiple stints; pick the one satisfying
+    // all row categories; fall back to the first if none do.
+    const pool = puzzle.isPitcherPuzzle ? pitcherSeasons : playerSeasons;
+    const allStints = pool.filter(p => p.name === playerName && p.year === year);
+    const ps = allStints.find(s => row.categories.every(cat => matchesCategory(s, cat)))
+            ?? allStints[0];
     if (!ps) {
       if (retryMode) {
         setWrongAttempts(prev => ({...prev, [activeRow]: [...(prev[activeRow]||[]), { playerName, year }]}));
@@ -551,7 +583,7 @@ export default function App() {
     setActiveRow(null);
   };
 
-  const newGame = () => { setPuzzle(generatePuzzle(playerSeasons, 5)); setSubmissions({}); setWrongAttempts({}); };
+  const newGame = () => { setPuzzle(generatePuzzle(playerSeasons, pitcherSeasons, 5)); setSubmissions({}); setWrongAttempts({}); };
 
   if (csvError) return <div style={{ minHeight:"100vh",background:"#111318",color:"#ef4444",display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"system-ui",padding:"24px",textAlign:"center" }}>Failed to load Lahman CSVs: {csvError}<br/><span style={{color:"rgba(255,255,255,0.4)",fontSize:"13px"}}>Ensure public/lahman-folder/ contains People.csv, Batting.csv, Fielding.csv</span></div>;
   if (loading) return <div style={{ minHeight:"100vh",background:"#111318",color:"#fff",display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"system-ui" }}>Parsing Lahman database…</div>;
@@ -612,7 +644,7 @@ export default function App() {
             <div style={{ height:"1px",background:"rgba(255,255,255,0.08)",marginBottom:"12px" }} />
 
             {puzzle.rows.map((row,i) => (
-              <PuzzleRow key={`${puzzle.id}-${i}`} row={row} rowIndex={i} scoringStat={puzzle.scoringStat} submission={submissions[i]} allRows={puzzle.rows} playerSeasons={playerSeasons} onClickAdd={setActiveRow} retryMode={retryMode} wrongRowAttempts={wrongAttempts[i]} />
+              <PuzzleRow key={`${puzzle.id}-${i}`} row={row} rowIndex={i} scoringStat={puzzle.scoringStat} submission={submissions[i]} allRows={puzzle.rows} playerSeasons={playerSeasons} pitcherSeasons={pitcherSeasons} isPitcherPuzzle={puzzle.isPitcherPuzzle} onClickAdd={setActiveRow} retryMode={retryMode} wrongRowAttempts={wrongAttempts[i]} />
             ))}
 
             <div style={{ display:"flex",alignItems:"center",justifyContent:"center",gap:"12px",marginTop:"24px",paddingBottom:"24px",flexWrap:"wrap" }}>
@@ -640,7 +672,12 @@ export default function App() {
             </div>
 
             {activeRow !== null && (
-              <PlayerSearchModal key={activeRow} playerSeasons={playerSeasons} onSelect={handlePlayerSelect} onClose={()=>setActiveRow(null)} />
+              <PlayerSearchModal
+                key={activeRow}
+                seasons={puzzle.isPitcherPuzzle ? pitcherSeasons : playerSeasons}
+                onSelect={handlePlayerSelect}
+                onClose={()=>setActiveRow(null)}
+              />
             )}
           </>
         ) : (

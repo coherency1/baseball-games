@@ -19,15 +19,21 @@ export const CATEGORY_TYPES = {
 };
 
 export const SCORING_STATS = [
-  { key: "HR", label: "HRs" },
-  { key: "RBI", label: "RBI" },
-  { key: "R", label: "Runs" },
-  { key: "H", label: "Hits" },
-  { key: "SB", label: "SBs" },
-  { key: "SO", label: "Ks" },
-  { key: "BB", label: "BBs" },
-  { key: "2B", label: "2Bs" },
-  { key: "XBH", label: "XBH" },
+  // Batting scoring stats (hitter puzzles)
+  { key: "HR",   label: "HRs",   type: "batting" },
+  { key: "RBI",  label: "RBI",   type: "batting" },
+  { key: "R",    label: "Runs",  type: "batting" },
+  { key: "H",    label: "Hits",  type: "batting" },
+  { key: "SB",   label: "SBs",   type: "batting" },
+  { key: "BB",   label: "BBs",   type: "batting" },
+  { key: "2B",   label: "2Bs",   type: "batting" },
+  { key: "XBH",  label: "XBH",   type: "batting" },
+  // Pitching scoring stats (pitcher puzzles)
+  { key: "SO",   label: "Ks",    type: "pitching" },
+  { key: "W",    label: "Wins",  type: "pitching" },
+  { key: "SV",   label: "Saves", type: "pitching" },
+  { key: "ERA",  label: "ERA",   type: "pitching", lowerIsBetter: true  },
+  { key: "WHIP", label: "WHIP",  type: "pitching", lowerIsBetter: true  },
 ];
 
 export function matchesCategory(ps, cat) {
@@ -231,14 +237,41 @@ function genCol3() {
   return { type: CATEGORY_TYPES.STAT_THRESHOLD, value: o, label: o.label };
 }
 
-export function generatePuzzle(playerSeasons, numRows = 5) {
-  // Exclude pitchers: their batting stats are outliers that pollute answer pools
-  // and skew scoring distributions. The full playerSeasons is still used by the
-  // UI for player search so pitchers remain searchable.
-  const hitterSeasons = playerSeasons.filter(ps => ps.pos !== "P");
+// Pitcher-specific column 3: role (starter/closer) or pitching stat threshold
+function genPitcherCol3() {
+  const r = Math.random();
+  if (r < 0.40) {
+    // Starter vs. closer/reliever split
+    if (r < 0.22) {
+      return { type: CATEGORY_TYPES.STAT_THRESHOLD, value: { stat: "GS", min: 20 }, label: "SP (20+ GS)" };
+    }
+    return { type: CATEGORY_TYPES.STAT_THRESHOLD, value: { stat: "SV", min: 10 }, label: "Closer (10+ SV)" };
+  }
+  // Stat thresholds
+  const opts = [
+    { stat: "SO",   min: 150, label: "150+ Ks"     },
+    { stat: "SO",   min: 200, label: "200+ Ks"     },
+    { stat: "W",    min: 12,  label: "12+ Wins"    },
+    { stat: "W",    min: 15,  label: "15+ Wins"    },
+    { stat: "SV",   min: 20,  label: "20+ Saves"   },
+    { stat: "GS",   min: 28,  label: "28+ Starts"  },
+    { stat: "IP",   min: 150, label: "150+ IP"     },
+    { stat: "IP",   min: 180, label: "180+ IP"     },
+  ];
+  const o = opts[Math.floor(Math.random() * opts.length)];
+  return { type: CATEGORY_TYPES.STAT_THRESHOLD, value: o, label: o.label };
+}
 
+export function generatePuzzle(playerSeasons, pitcherSeasons = [], numRows = 5) {
   const scoringStat = SCORING_STATS[Math.floor(Math.random() * SCORING_STATS.length)];
-  const availableTeams = getAvailableTeams(hitterSeasons);
+  const isPitcherPuzzle = scoringStat.type === "pitching";
+
+  // Pitcher puzzles use the pitcher pool; hitter puzzles exclude pitchers entirely.
+  const seasonPool = isPitcherPuzzle
+    ? pitcherSeasons
+    : playerSeasons.filter(ps => ps.pos !== "P");
+
+  const availableTeams = getAvailableTeams(seasonPool);
   const rows = [];
   // Track accepted rows as category triples for AND-based overlap detection.
   // A new row is only rejected if a player-season could satisfy BOTH it AND an
@@ -258,13 +291,13 @@ export function generatePuzzle(playerSeasons, numRows = 5) {
     for (let attempt = 0; attempt < 150; attempt++) {
       const c1 = genCol1(availableTeams);
       const c2 = genCol2(c1.type === CATEGORY_TYPES.TEAM);
-      const c3 = genCol3();
+      const c3 = isPitcherPuzzle ? genPitcherCol3() : genCol3();
       const cats = [c1, c2, c3];
 
       // Reject only if a player-season could satisfy this AND an existing row
       if (usedRows.some(existing => rowsOverlap(existing, cats))) continue;
 
-      const matches = findMatchingSeasons(cats, hitterSeasons);
+      const matches = findMatchingSeasons(cats, seasonPool);
       if (matches.length >= 3 && matches.length <= 15) {
         bestRow = { categories: cats, validAnswers: matches };
         break;
@@ -277,10 +310,10 @@ export function generatePuzzle(playerSeasons, numRows = 5) {
         const cats = [
           { type: CATEGORY_TYPES.ALL_TEAMS, value: "all", label: "MLB" },
           genCol2(),
-          genCol3(),
+          isPitcherPuzzle ? genPitcherCol3() : genCol3(),
         ];
         if (usedRows.some(existing => rowsOverlap(existing, cats))) continue;
-        const matches = findMatchingSeasons(cats, hitterSeasons);
+        const matches = findMatchingSeasons(cats, seasonPool);
         if (matches.length >= 3) {
           bestRow = { categories: cats, validAnswers: matches };
           break;
@@ -291,31 +324,41 @@ export function generatePuzzle(playerSeasons, numRows = 5) {
     // Last-resort hard fallback: guaranteed solvable, overlap check skipped.
     // Practically unreachable (requires all 180 attempts to fail).
     if (!bestRow) {
+      const fallbackC3 = isPitcherPuzzle
+        ? { type: CATEGORY_TYPES.STAT_THRESHOLD, value: { stat: "GS", min: 20 }, label: "SP (20+ GS)" }
+        : { type: CATEGORY_TYPES.BATS, value: "R", label: "Right" };
       const cats = [
         { type: CATEGORY_TYPES.ALL_TEAMS, value: "all", label: "MLB" },
         { type: CATEGORY_TYPES.YEAR_RANGE, value: [2010, 2020], label: "2010 to 2020" },
-        { type: CATEGORY_TYPES.BATS, value: "R", label: "Right" },
+        fallbackC3,
       ];
-      bestRow = { categories: cats, validAnswers: findMatchingSeasons(cats, hitterSeasons) };
+      bestRow = { categories: cats, validAnswers: findMatchingSeasons(cats, seasonPool) };
     }
 
     rows.push(bestRow);
     usedRows.push(bestRow.categories);
   }
 
-  return { scoringStat, rows, id: Date.now().toString(36) };
+  return { scoringStat, rows, isPitcherPuzzle, id: Date.now().toString(36) };
 }
 
-// Percentile within this row's valid answers: highest answer = 100th percentile.
-export function computePercentile(score, statKey, row) {
+// Percentile within this row's valid answers.
+// For normal stats (HR, SO, W…): highest value = 100th percentile.
+// For lowerIsBetter stats (ERA, WHIP): lowest value = 100th percentile.
+export function computePercentile(score, statKey, row, lowerIsBetter = false) {
   const scores = row.validAnswers
-    .map(ps => ps[statKey] || 0)
-    .filter(v => v > 0)
+    .map(ps => ps[statKey] ?? null)
+    .filter(v => v !== null && (lowerIsBetter ? v >= 0 : v > 0))
     .sort((a, b) => a - b);
   if (scores.length === 0) return 50;
+  const min = scores[0];
   const max = scores[scores.length - 1];
-  if (max === 0) return 50;
-  // Scale so the highest answer is the 100th percentile
+  if (max === min) return 50;
+
+  if (lowerIsBetter) {
+    // Lower value → closer to 100th percentile
+    return Math.min(100, Math.max(0, Math.round((1 - (score - min) / (max - min)) * 100)));
+  }
   return Math.min(100, Math.round((score / max) * 100));
 }
 
