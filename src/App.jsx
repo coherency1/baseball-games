@@ -6,32 +6,156 @@ import {
   generatePuzzle, computePercentile, getTier,
 } from "./engine.js";
 import PinpointChallenge from "./PinpointChallenge.jsx";
+import { parseCSVText, buildPlayerSeasons } from "./lahmanLoader.js";
 
 // =====================================================================
-// DATA LOADING
+// DATA LOADING — Lahman CSVs (public/lahman-folder/)
 // =====================================================================
-// Loads from /statpad_data.json in the public folder.
-// To swap data: replace public/statpad_data.json with new data from
-// generate_data_v5.py and restart the dev server.
+// Fetches and parses the three Lahman CSV files once, then buildPlayerSeasons
+// re-filters cheaply whenever settings (startYear / endYear / minPA) change.
 
-function usePlayerData() {
-  const [data, setData] = useState([]);
-  const [loading, setLoading] = useState(true);
+function useLahmanData() {
+  // Raw parsed CSV rows — fetched and parsed once, never refetched
+  const [raw, setRaw] = useState(null);
+  const [csvLoading, setCsvLoading] = useState(true);
+  const [csvError, setCsvError]   = useState(null);
+
   useEffect(() => {
-    fetch("/statpad_data.json")
-      .then(r => r.json())
-      .then(d => {
-        // Compute XBH if missing
-        d.forEach(ps => {
-          if (ps.XBH == null) ps.XBH = (ps["2B"]||0) + (ps["3B"]||0) + (ps.HR||0);
+    const base = "/lahman-folder";
+    Promise.all([
+      fetch(`${base}/People.csv`).then(r => r.text()),
+      fetch(`${base}/Batting.csv`).then(r => r.text()),
+      fetch(`${base}/Fielding.csv`).then(r => r.text()),
+    ])
+      .then(([p, b, f]) => {
+        setRaw({
+          people:   parseCSVText(p),
+          batting:  parseCSVText(b),
+          fielding: parseCSVText(f),
         });
-        setData(d);
-        setLoading(false);
+        setCsvLoading(false);
       })
-      .catch(e => { console.error("Failed to load data:", e); setLoading(false); });
+      .catch(e => { setCsvError(e.message); setCsvLoading(false); });
   }, []);
-  return { data, loading };
+
+  return { raw, csvLoading, csvError };
 }
+
+// =====================================================================
+// DATA FILTER PANEL
+// =====================================================================
+
+const ERA_PRESETS = [
+  { label: "Modern",    startYear: 2015, endYear: 2025 },
+  { label: "Since '00", startYear: 2000, endYear: 2025 },
+  { label: "Since '90", startYear: 1990, endYear: 2025 },
+  { label: "All-Time",  startYear: 1871, endYear: 2025 },
+];
+
+function DataFilterPanel({ settings, onChange, recordCount }) {
+  const [open, setOpen] = useState(false);
+  const { startYear, endYear, minPA } = settings;
+
+  const set = (key, val) => onChange({ ...settings, [key]: val });
+
+  const activePreset = ERA_PRESETS.find(
+    p => p.startYear === startYear && p.endYear === endYear
+  );
+
+  return (
+    <div style={{ marginBottom: "12px" }}>
+      {/* Toggle row */}
+      <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+        <button
+          onClick={() => setOpen(o => !o)}
+          style={{
+            padding: "5px 12px", borderRadius: "7px", border: "1px solid rgba(255,255,255,0.12)",
+            background: open ? "rgba(255,255,255,0.09)" : "rgba(255,255,255,0.04)",
+            color: "rgba(255,255,255,0.6)", fontSize: "12px", fontWeight: 600, cursor: "pointer",
+            display: "flex", alignItems: "center", gap: "6px",
+          }}
+        >
+          <span style={{ fontSize: "10px" }}>{open ? "▲" : "▼"}</span>
+          Filters
+        </button>
+        <span style={{
+          fontSize: "11px", color: "rgba(255,255,255,0.3)",
+          background: "rgba(255,255,255,0.05)", borderRadius: "5px", padding: "3px 8px",
+        }}>
+          {activePreset?.label ?? `${startYear}–${endYear}`}
+          {" · "}
+          {recordCount != null ? `${recordCount.toLocaleString()} player-seasons` : "loading…"}
+        </span>
+      </div>
+
+      {/* Expanded panel */}
+      {open && (
+        <div style={{
+          marginTop: "10px", padding: "14px 16px", borderRadius: "10px",
+          background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)",
+        }}>
+          {/* Era presets */}
+          <div style={{ marginBottom: "12px" }}>
+            <div style={{ fontSize: "10px", fontWeight: 700, color: "rgba(255,255,255,0.3)", letterSpacing: "0.08em", marginBottom: "6px" }}>ERA PRESET</div>
+            <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
+              {ERA_PRESETS.map(p => (
+                <button
+                  key={p.label}
+                  onClick={() => onChange({ ...settings, startYear: p.startYear, endYear: p.endYear })}
+                  style={{
+                    padding: "5px 12px", borderRadius: "6px", border: "none", cursor: "pointer",
+                    fontSize: "12px", fontWeight: 600,
+                    background: activePreset?.label === p.label
+                      ? "#3b82f6" : "rgba(255,255,255,0.08)",
+                    color: activePreset?.label === p.label
+                      ? "#fff" : "rgba(255,255,255,0.5)",
+                  }}
+                >
+                  {p.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Custom year range */}
+          <div style={{ display: "flex", gap: "16px", alignItems: "flex-end", flexWrap: "wrap" }}>
+            <div>
+              <div style={{ fontSize: "10px", fontWeight: 700, color: "rgba(255,255,255,0.3)", letterSpacing: "0.08em", marginBottom: "4px" }}>START YEAR</div>
+              <input
+                type="number" min={1871} max={endYear} value={startYear}
+                onChange={e => set("startYear", Math.min(+e.target.value, endYear))}
+                style={inputStyle}
+              />
+            </div>
+            <div>
+              <div style={{ fontSize: "10px", fontWeight: 700, color: "rgba(255,255,255,0.3)", letterSpacing: "0.08em", marginBottom: "4px" }}>END YEAR</div>
+              <input
+                type="number" min={startYear} max={2025} value={endYear}
+                onChange={e => set("endYear", Math.max(+e.target.value, startYear))}
+                style={inputStyle}
+              />
+            </div>
+            <div>
+              <div style={{ fontSize: "10px", fontWeight: 700, color: "rgba(255,255,255,0.3)", letterSpacing: "0.08em", marginBottom: "4px" }}>MIN PA</div>
+              <input
+                type="number" min={1} max={700} value={minPA}
+                onChange={e => set("minPA", Math.max(1, +e.target.value))}
+                style={{ ...inputStyle, width: "70px" }}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+const inputStyle = {
+  width: "80px", padding: "6px 10px", borderRadius: "7px",
+  border: "1px solid rgba(255,255,255,0.15)",
+  background: "rgba(0,0,0,0.3)", color: "#fff",
+  fontSize: "14px", fontFamily: "inherit", outline: "none",
+};
 
 // =====================================================================
 // COMPONENTS
@@ -363,7 +487,24 @@ function PuzzleRow({ row, rowIndex, scoringStat, submission, allRows, playerSeas
 // APP
 // =====================================================================
 export default function App() {
-  const { data: playerSeasons, loading } = usePlayerData();
+  const { raw, csvLoading, csvError } = useLahmanData();
+  const [settings, setSettings] = useState({ startYear: 2008, endYear: 2025, minPA: 50 });
+
+  // Re-filter instantly when settings change — no re-fetch
+  const playerSeasons = useMemo(() =>
+    raw ? buildPlayerSeasons(raw.people, raw.batting, raw.fielding, settings) : [],
+    [raw, settings]
+  );
+
+  // Pinpoint needs career-accurate totals: include all stints regardless of PA
+  // so short partial seasons (e.g. Ruiz's 2025 LAD cup with 4 SB in 23 PA)
+  // aren't silently dropped from leaderboard aggregates.
+  const pinpointSeasons = useMemo(() =>
+    raw ? buildPlayerSeasons(raw.people, raw.batting, raw.fielding, { ...settings, minPA: 1 }) : [],
+    [raw, settings]
+  );
+  const loading = csvLoading;
+
   const [puzzle, setPuzzle] = useState(null);
   const [submissions, setSubmissions] = useState({});
   const [wrongAttempts, setWrongAttempts] = useState({});
@@ -373,7 +514,11 @@ export default function App() {
   const [activePage, setActivePage] = useState("statpad"); // "statpad" | "pinpoint"
 
   useEffect(() => {
-    if (playerSeasons.length > 0) setPuzzle(generatePuzzle(playerSeasons, 5));
+    if (playerSeasons.length > 0) {
+      setPuzzle(generatePuzzle(playerSeasons, 5));
+      setSubmissions({});
+      setWrongAttempts({});
+    }
   }, [playerSeasons]);
 
   const totalScore = Object.values(submissions).reduce((s,sub) => s + (sub.correct ? sub.score : 0), 0);
@@ -408,7 +553,8 @@ export default function App() {
 
   const newGame = () => { setPuzzle(generatePuzzle(playerSeasons, 5)); setSubmissions({}); setWrongAttempts({}); };
 
-  if (loading) return <div style={{ minHeight:"100vh",background:"#111318",color:"#fff",display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"system-ui" }}>Loading data...</div>;
+  if (csvError) return <div style={{ minHeight:"100vh",background:"#111318",color:"#ef4444",display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"system-ui",padding:"24px",textAlign:"center" }}>Failed to load Lahman CSVs: {csvError}<br/><span style={{color:"rgba(255,255,255,0.4)",fontSize:"13px"}}>Ensure public/lahman-folder/ contains People.csv, Batting.csv, Fielding.csv</span></div>;
+  if (loading) return <div style={{ minHeight:"100vh",background:"#111318",color:"#fff",display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"system-ui" }}>Parsing Lahman database…</div>;
   if (!puzzle && activePage === "statpad") return null;
 
   return (
@@ -438,6 +584,12 @@ export default function App() {
             >Pinpoint</button>
           </div>
         </div>
+
+        <DataFilterPanel
+          settings={settings}
+          onChange={setSettings}
+          recordCount={playerSeasons.length}
+        />
 
         {activePage === "statpad" ? (
           <>
@@ -492,7 +644,7 @@ export default function App() {
             )}
           </>
         ) : (
-          <PinpointChallenge />
+          <PinpointChallenge playerSeasons={pinpointSeasons} />
         )}
       </div>
     </div>

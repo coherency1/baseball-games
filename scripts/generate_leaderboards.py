@@ -4,8 +4,7 @@ generate_leaderboards.py - All-Time MLB Leaderboard Data Generator
 ====================================================================
 Generates public/leaderboard_data.json for the Pinpoint Challenge game.
 
-Uses the Chadwick Bureau baseball databank (Lahman-compatible CSVs) downloaded
-directly from GitHub raw URLs — no pybaseball Lahman ZIP dependency needed.
+Uses the SABR Lahman Baseball Database (https://sabr.org/lahman-database/).
 WAR is fetched from Baseball Reference via pybaseball.bwar_bat() with a
 graceful fallback if that fails.
 
@@ -13,41 +12,20 @@ INSTALL:
     pip install pandas requests pybaseball
 
 RUN:
-    python scripts/generate_leaderboards.py
-    python scripts/generate_leaderboards.py --end 2010 --top 150
-
-OUTPUT FORMAT:
-    {
-      "generated": "2026-02-18",
-      "top_n": 150,
-      "categories": [
-        {
-          "id": "all_time_hr",
-          "label": "Home Run Leaders",
-          "era": "All-Time (1871-2010)",
-          "stat": "HR",
-          "statLabel": "HR",
-          "statType": "batting",
-          "minimum": null,
-          "players": [
-            {"rank": 1, "name": "Barry Bonds", "value": 762},
-            ...
-          ]
-        }
-      ]
-    }
+    python scripts/generate_leaderboards.py --local-dir ~/Downloads/lahman
+    python scripts/generate_leaderboards.py --local-dir ~/Downloads/lahman --end 2025 --top 150
 
 DATA SOURCES:
-- Chadwick Bureau Batting.csv  (HR, RBI, H, BB, AB, HBP, SF, SH)
-- Chadwick Bureau Pitching.csv (IPouts, SO, BB)
-- Chadwick Bureau People.csv   (playerID → "First Last" name)
-- bwar_bat()                   → Baseball Reference WAR CSV (career WAR)
+- Lahman Batting.csv  (HR, RBI, H, BB, R, SB, 2B, 3B, AB, HBP, SF, SH)
+- Lahman Pitching.csv (IPouts, SO, BB, W, SV, CG, SHO)
+- Lahman People.csv   (playerID → "First Last" name)
+- bwar_bat()          → Baseball Reference WAR CSV (career WAR, optional)
 
-CATEGORIES (8 total, dropping wRC+ which requires FanGraphs):
-  Batting counting: HR, RBI, H, BB  — no minimum
-  Batting rate:     WAR              — no minimum (bwar_bat is position-players only)
-  Pitching counting: SO, BB          — no minimum
-  Pitching rate:    K/9              — 1000+ IP minimum
+CATEGORIES (16 total):
+  Batting counting: HR, RBI, H, BB, R, SB, 2B, 3B  — no minimum
+  Batting rate:     WAR                              — no minimum
+  Pitching counting: SO, BB, W, SV, CG, SHO         — no minimum
+  Pitching rate:    K/9                              — 1000+ IP minimum
 """
 
 import argparse
@@ -69,12 +47,12 @@ def aggregate_lahman_batting(bat_df, name_map):
     """
     Group Lahman Batting.csv by playerID, sum counting stats.
     PA = AB + BB + HBP + SF + SH  (standard approximation).
-    Returns dict: "First Last" -> {PA, HR, RBI, H, BB}
+    Returns dict: "First Last" -> {PA, HR, RBI, H, BB, R, SB, 2B, 3B}
     """
     import pandas as pd
 
-    agg_cols = ["AB", "HR", "RBI", "H", "BB", "HBP", "SF", "SH"]
-    # Fill NaN with 0 before summing (older seasons may lack HBP/SF/SH)
+    agg_cols = ["AB", "HR", "RBI", "H", "BB", "HBP", "SF", "SH", "R", "SB", "2B", "3B"]
+    # Fill NaN with 0 before summing (older seasons may lack some columns)
     for col in agg_cols:
         if col not in bat_df.columns:
             bat_df[col] = 0
@@ -94,6 +72,10 @@ def aggregate_lahman_batting(bat_df, name_map):
             "RBI": int(row["RBI"]),
             "H":   int(row["H"]),
             "BB":  int(row["BB"]),
+            "R":   int(row["R"]),
+            "SB":  int(row["SB"]),
+            "2B":  int(row["2B"]),
+            "3B":  int(row["3B"]),
         }
     return result
 
@@ -103,15 +85,15 @@ def aggregate_lahman_pitching(pit_df, name_map):
     Group Lahman Pitching.csv by playerID, sum counting stats.
     Lahman stores IPouts (outs recorded), so IP = IPouts / 3 exactly.
     K/9 = (SO / IP) * 9, computed after aggregation.
-    Returns dict: "First Last" -> {IP, SO, BB, K/9}
+    Returns dict: "First Last" -> {IP, SO, BB, K/9, W, SV, CG, SHO}
     """
     pit_df = pit_df.copy()
-    for col in ["IPouts", "SO", "BB"]:
+    for col in ["IPouts", "SO", "BB", "W", "SV", "CG", "SHO"]:
         if col not in pit_df.columns:
             pit_df[col] = 0
         pit_df[col] = pit_df[col].fillna(0)
 
-    career = pit_df.groupby("playerID")[["IPouts", "SO", "BB"]].sum()
+    career = pit_df.groupby("playerID")[["IPouts", "SO", "BB", "W", "SV", "CG", "SHO"]].sum()
     career["IP"] = career["IPouts"] / 3.0
     career["K/9"] = (career["SO"] / career["IP"] * 9).where(career["IP"] > 0, 0.0)
 
@@ -125,6 +107,10 @@ def aggregate_lahman_pitching(pit_df, name_map):
             "SO":  int(row["SO"]),
             "BB":  int(row["BB"]),
             "K/9": round(row["K/9"], 2),
+            "W":   int(row["W"]),
+            "SV":  int(row["SV"]),
+            "CG":  int(row["CG"]),
+            "SHO": int(row["SHO"]),
         }
     return result
 
@@ -172,8 +158,11 @@ def main():
     parser.add_argument("--output", default="public/leaderboard_data.json")
     parser.add_argument("--start",  type=int, default=1871,
                         help="First season to include (default: 1871)")
-    parser.add_argument("--end",    type=int, default=2010,
-                        help="Last season to include (default: 2010)")
+    parser.add_argument("--end",    type=int, default=2025,
+                        help="Last season to include (default: 2025)")
+    parser.add_argument("--since",  type=int, default=None,
+                        help="Shorthand for --start YEAR; sets era label to 'Since YEAR'. "
+                             "E.g. --since 2000 builds a modern-era leaderboard.")
     parser.add_argument("--top",    type=int, default=150,
                         help="Players per category (default: 150)")
     parser.add_argument("--local-dir", default=None, dest="local_dir",
@@ -182,13 +171,18 @@ def main():
                              "https://sabr.org/lahman-database/")
     args = parser.parse_args()
 
+    # --since overrides --start and sets a friendlier era label
+    if args.since is not None:
+        args.start = args.since
+        era_label = f"Since {args.since} ({args.since}–{args.end})"
+    else:
+        era_label = f"All-Time ({args.start}–{args.end})"
+
     try:
         import pandas as pd
     except ImportError:
         print("ERROR: Run:  pip install pandas")
         sys.exit(1)
-
-    era_label = f"All-Time ({args.start}–{args.end})"
 
     print("=" * 60)
     print("Pinpoint Challenge — Leaderboard Data Generator (Lahman)")
@@ -325,6 +319,10 @@ def main():
         dict(id="all_time_rbi",     label="RBI Leaders",             stat="RBI", min_key=None, min_val=0, minimum=None, statLabel="RBI", statType="batting"),
         dict(id="all_time_hits",    label="Hits Leaders",            stat="H",   min_key=None, min_val=0, minimum=None, statLabel="H",   statType="batting"),
         dict(id="all_time_bb_bat",  label="Walks Leaders (Batters)", stat="BB",  min_key=None, min_val=0, minimum=None, statLabel="BB",  statType="batting"),
+        dict(id="all_time_runs",    label="Runs Scored Leaders",     stat="R",   min_key=None, min_val=0, minimum=None, statLabel="R",   statType="batting"),
+        dict(id="all_time_sb",      label="Stolen Base Leaders",     stat="SB",  min_key=None, min_val=0, minimum=None, statLabel="SB",  statType="batting"),
+        dict(id="all_time_2b",      label="Doubles Leaders",         stat="2B",  min_key=None, min_val=0, minimum=None, statLabel="2B",  statType="batting"),
+        dict(id="all_time_3b",      label="Triples Leaders",         stat="3B",  min_key=None, min_val=0, minimum=None, statLabel="3B",  statType="batting"),
     ]
 
     WAR_CATS = [
@@ -336,6 +334,10 @@ def main():
         dict(id="all_time_so_pitch", label="Strikeout Leaders (Pitchers)", stat="SO",  min_key=None,  min_val=0,    minimum=None,       statLabel="SO",  statType="pitching"),
         dict(id="all_time_bb_pitch", label="Walks Allowed Leaders",        stat="BB",  min_key=None,  min_val=0,    minimum=None,       statLabel="BB",  statType="pitching"),
         dict(id="all_time_k9",       label="K/9 Leaders (Pitchers)",       stat="K/9", min_key="IP",  min_val=1000, minimum="1000+ IP", statLabel="K/9", statType="pitching"),
+        dict(id="all_time_wins",     label="Win Leaders (Pitchers)",       stat="W",   min_key=None,  min_val=0,    minimum=None,       statLabel="W",   statType="pitching"),
+        dict(id="all_time_sv",       label="Save Leaders (Pitchers)",      stat="SV",  min_key=None,  min_val=0,    minimum=None,       statLabel="SV",  statType="pitching"),
+        dict(id="all_time_cg",       label="Complete Game Leaders",        stat="CG",  min_key=None,  min_val=0,    minimum=None,       statLabel="CG",  statType="pitching"),
+        dict(id="all_time_sho",      label="Shutout Leaders (Pitchers)",   stat="SHO", min_key=None,  min_val=0,    minimum=None,       statLabel="SHO", statType="pitching"),
     ]
 
     # ── Build output ──────────────────────────────────────────────
