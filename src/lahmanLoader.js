@@ -65,7 +65,11 @@ export function buildPlayerSeasons(people, batting, fielding, settings) {
 
   // Fielding.csv → primary position per (playerID, yearID, teamID)
   // "Primary" = position with the most games played that season+team.
-  const posMap = {}; // `pid|year|team` → [pos, games]
+  // We track non-P positions separately so two-way players (Ohtani etc.)
+  // aren't excluded from batting leaderboards when they pitched more games
+  // than they played OF/DH (or when DH doesn't appear in Fielding at all).
+  const posMap    = {}; // key → [pos, games]  — best overall position
+  const nonPPosMap = {}; // key → [pos, games]  — best non-pitcher position
   for (const row of fielding) {
     const year = +row.yearID;
     if (year < startYear || year > endYear) continue;
@@ -75,6 +79,9 @@ export function buildPlayerSeasons(people, batting, fielding, settings) {
     const key = `${row.playerID}|${row.yearID}|${row.teamID}`;
     const g = parseInt(row.G, 10) || 0;
     if (!posMap[key] || g > posMap[key][1]) posMap[key] = [pos, g];
+    if (pos !== "P") {
+      if (!nonPPosMap[key] || g > nonPPosMap[key][1]) nonPPosMap[key] = [pos, g];
+    }
   }
 
   // Batting.csv → one record per player-team-stint
@@ -114,7 +121,15 @@ export function buildPlayerSeasons(people, batting, fielding, settings) {
     const ops  = +(obp + slg).toFixed(3);
 
     const posKey = `${row.playerID}|${row.yearID}|${row.teamID}`;
-    const pos    = posMap[posKey]?.[0] ?? "DH";
+    let pos = posMap[posKey]?.[0] ?? "DH";
+    // Two-way players (e.g. Ohtani): Fielding may classify them as P because
+    // they pitched in more *games listed in Fielding* than they played OF/DH.
+    // DH also rarely appears in Fielding.csv. If a player has passed the PA
+    // threshold they are clearly a batter — use their best non-P fielding
+    // position, or "DH" if they had no non-P Fielding rows at all.
+    if (pos === "P") {
+      pos = nonPPosMap[posKey]?.[0] ?? "DH";
+    }
     const bats   = batsMap[row.playerID] || "R";
 
     records.push({
