@@ -219,6 +219,25 @@ function MlbLogo({ size = 44 }) {
   );
 }
 
+function LeagueLogo({ league, label, size = 44 }) {
+  const [imgError, setImgError] = useState(false);
+  const src = `https://a.espncdn.com/i/teamlogos/leagues/500/${league.toLowerCase()}.png`;
+  return (
+    <div style={{ display:"flex",flexDirection:"column",alignItems:"center",gap:"4px",minWidth:"70px" }}>
+      {imgError ? (
+        <div style={{ width:size,height:size,borderRadius:Math.round(size*0.18),background:"rgba(255,255,255,0.93)",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0 }}>
+          <span style={{ color:"#1a1d23",fontSize:size*0.38,fontWeight:900,letterSpacing:"-0.02em" }}>{league}</span>
+        </div>
+      ) : (
+        <div style={{ width:size,height:size,borderRadius:Math.round(size*0.18),background:"rgba(255,255,255,0.93)",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,overflow:"hidden" }}>
+          <img src={src} alt={league} style={{ width:size*0.82,height:size*0.82,objectFit:"contain" }} onError={() => setImgError(true)} />
+        </div>
+      )}
+      {label && <span style={{ fontSize:"10px",color:"rgba(255,255,255,0.5)",fontWeight:600 }}>{label}</span>}
+    </div>
+  );
+}
+
 // -- Player Search Modal --
 function PlayerSearchModal({ seasons, fixedYear = null, onSelect, onClose }) {
   const [query, setQuery] = useState("");
@@ -427,14 +446,7 @@ function CategoryDisplay({ category }) {
     );
   }
   if (type === CATEGORY_TYPES.LEAGUE) {
-    return (
-      <div style={{ display:"flex",flexDirection:"column",alignItems:"center",gap:"4px",minWidth:"70px" }}>
-        <div style={{ width:44,height:44,borderRadius:Math.round(44*0.18),background:"rgba(255,255,255,0.93)",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0 }}>
-          <span style={{ color:"#1a1d23",fontSize:18,fontWeight:900,letterSpacing:"-0.02em" }}>{category.value}</span>
-        </div>
-        <span style={{ fontSize:"10px",color:"rgba(255,255,255,0.5)",fontWeight:600 }}>{category.label}</span>
-      </div>
-    );
+    return <LeagueLogo league={category.value} label={category.label} size={44} />;
   }
   if (type === CATEGORY_TYPES.ALL_TEAMS) {
     return (
