@@ -470,6 +470,14 @@ export default function PinpointChallenge({ playerSeasons = [] }) {
   const leaderboards     = useMemo(() => buildLeaderboardsFromData(playerSeasons), [playerSeasons]);
   const playerNamesByType = useMemo(() => buildPlayerNamesByType(leaderboards), [leaderboards]);
 
+  // "both" | "batting" | "pitching"
+  const [statFilter, setStatFilter] = useState("both");
+
+  const filteredLeaderboards = useMemo(
+    () => statFilter === "both" ? leaderboards : leaderboards.filter(c => c.statType === statFilter),
+    [leaderboards, statFilter]
+  );
+
   const [category, setCategory]         = useState(null);
   const [lastCategoryId, setLastCatId]  = useState(null);
   const [guesses, setGuesses]           = useState([]);
@@ -492,13 +500,12 @@ export default function PinpointChallenge({ playerSeasons = [] }) {
     setLastCatId(cat.id);
   };
 
-  // On initial data load: pick random category.
-  // On filter change (leaderboards rebuilt): always pick a NEW random category
-  // (excluding the current one) so the full player-pool reload is obvious to the user.
+  // On initial data load pick a random category from the current filtered pool.
   useEffect(() => {
     if (leaderboards.length === 0) return;
+    const pool = statFilter === "both" ? leaderboards : leaderboards.filter(c => c.statType === statFilter);
     const prevId = currentCatIdRef.current;
-    const cat = pickRandomCategory(leaderboards, prevId ?? undefined);
+    const cat = pickRandomCategory(pool, prevId ?? undefined);
     changeCategory(cat);
     if (prevId) {
       setGuesses([]);
@@ -508,6 +515,7 @@ export default function PinpointChallenge({ playerSeasons = [] }) {
       setQuery("");
       setSuggestions([]);
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [leaderboards]);
 
   // Autocomplete suggestions — scoped to the current category's statType
@@ -575,8 +583,8 @@ export default function PinpointChallenge({ playerSeasons = [] }) {
     }
   };
 
-  const handlePlayAgain = () => {
-    const cat = pickRandomCategory(leaderboards, lastCategoryId);
+  const resetGame = (pool, excludeId) => {
+    const cat = pickRandomCategory(pool, excludeId);
     changeCategory(cat);
     setGuesses([]);
     setStrikes(0);
@@ -585,6 +593,19 @@ export default function PinpointChallenge({ playerSeasons = [] }) {
     setQuery("");
     setSuggestions([]);
     setDupFlash(false);
+  };
+
+  const handlePlayAgain = () => resetGame(filteredLeaderboards, lastCategoryId);
+
+  const handleStatFilter = (newFilter) => {
+    if (newFilter === statFilter) return;
+    setStatFilter(newFilter);
+    const newPool = newFilter === "both"
+      ? leaderboards
+      : leaderboards.filter(c => c.statType === newFilter);
+    // Reset only if the current category doesn't fit the new filter
+    const compatible = newFilter === "both" || category?.statType === newFilter;
+    if (!compatible) resetGame(newPool, lastCategoryId);
   };
 
   if (!category) return null;
@@ -614,6 +635,32 @@ export default function PinpointChallenge({ playerSeasons = [] }) {
         >
           New Game
         </button>
+      </div>
+
+      {/* ── STAT FILTER TOGGLE ── */}
+      <div style={{ display: "flex", gap: "6px", marginBottom: "14px" }}>
+        {[
+          { key: "both",     label: "Both"     },
+          { key: "batting",  label: "Batting"  },
+          { key: "pitching", label: "Pitching" },
+        ].map(({ key, label }) => {
+          const active = statFilter === key;
+          return (
+            <button
+              key={key}
+              onClick={() => handleStatFilter(key)}
+              style={{
+                padding: "5px 13px", borderRadius: "20px", fontSize: "12px", fontWeight: 600,
+                cursor: "pointer", transition: "all 0.15s",
+                border: active ? "1px solid rgba(59,130,246,0.6)" : "1px solid rgba(255,255,255,0.1)",
+                background: active ? "rgba(59,130,246,0.18)" : "rgba(255,255,255,0.04)",
+                color: active ? "#93c5fd" : "rgba(255,255,255,0.4)",
+              }}
+            >
+              {label}
+            </button>
+          );
+        })}
       </div>
 
       {/* ── SCORE BAR ── */}

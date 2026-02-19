@@ -565,7 +565,7 @@ function LoadingScreen() {
 // =====================================================================
 export default function App() {
   const { raw, csvLoading, csvError } = useLahmanData();
-  const [settings, setSettings] = useState({ startYear: 2008, endYear: 2025 });
+  const [settings, setSettings] = useState({ startYear: 2000, endYear: 2025 });
 
   // Re-filter instantly when settings change — no re-fetch
   const playerSeasons = useMemo(() =>
