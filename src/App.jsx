@@ -521,6 +521,42 @@ function PuzzleRow({ row, rowIndex, scoringStat, submission, allRows, playerSeas
   );
 }
 
+const LOADING_MESSAGES = [
+  "Running the bases…",
+  "Taking ball four…",
+  "Stealing home…",
+  "Checking the signs…",
+  "Stepping out of the box…",
+  "Arguing with the umpire…",
+  "Spitting sunflower seeds…",
+  "Adjusting batting gloves…",
+  "Warming up in the bullpen…",
+  "Turning two…",
+  "Hitting the cutoff man…",
+  "Calling time…",
+  "Reading the infield shift…",
+  "Going to a full count…",
+  "Fouling one back…",
+  "Diving into second…",
+  "Rounding third and heading home…",
+  "Getting the sign from third…",
+  "Shaking off the catcher…",
+  "Laying down the bunt…",
+];
+
+function LoadingScreen() {
+  const msg = useMemo(
+    () => LOADING_MESSAGES[Math.floor(Math.random() * LOADING_MESSAGES.length)],
+    []
+  );
+  return (
+    <div style={{ minHeight:"100vh",background:"#111318",color:"#fff",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",fontFamily:"system-ui",gap:"12px" }}>
+      <div style={{ fontSize:"32px" }}>⚾</div>
+      <div style={{ fontSize:"15px",color:"rgba(255,255,255,0.5)",fontWeight:500 }}>{msg}</div>
+    </div>
+  );
+}
+
 // =====================================================================
 // APP
 // =====================================================================
@@ -608,7 +644,7 @@ export default function App() {
   const newGame = () => { setPuzzle(generatePuzzle(playerSeasons, pitcherSeasons, 5)); setSubmissions({}); setWrongAttempts({}); };
 
   if (csvError) return <div style={{ minHeight:"100vh",background:"#111318",color:"#ef4444",display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"system-ui",padding:"24px",textAlign:"center" }}>Failed to load Lahman CSVs: {csvError}<br/><span style={{color:"rgba(255,255,255,0.4)",fontSize:"13px"}}>Ensure public/lahman-folder/ contains People.csv, Batting.csv, Fielding.csv</span></div>;
-  if (loading) return <div style={{ minHeight:"100vh",background:"#111318",color:"#fff",display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"system-ui" }}>Parsing Lahman database…</div>;
+  if (loading) return <LoadingScreen />;
   if (!puzzle && activePage === "statpad") return null;
 
   return (
