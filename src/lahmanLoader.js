@@ -51,7 +51,7 @@ export function parseCSVText(raw) {
 // Builds one record per pitcher-team-stint from Pitching.csv + People.csv.
 // minIP filters out garbage-time appearances (default: 10 innings pitched).
 export function buildPitcherSeasons(people, pitching, settings) {
-  const { startYear, endYear, minIP = 10 } = settings;
+  const { startYear, endYear, minIP = 10, includeUnknownTeams = false } = settings;
 
   // People.csv → name + throws hand
   const nameMap = {}, throwsMap = {};
@@ -67,8 +67,9 @@ export function buildPitcherSeasons(people, pitching, settings) {
     const year = +row.yearID;
     if (year < startYear || year > endYear) continue;
 
-    const gameTeam = LAHMAN_TO_GAME[row.teamID];
-    if (!gameTeam) continue;           // defunct franchise
+    const mappedTeam = LAHMAN_TO_GAME[row.teamID];
+    const gameTeam = mappedTeam || (includeUnknownTeams ? row.teamID : null);
+    if (!gameTeam) continue;           // defunct/unsupported franchise
 
     const name = nameMap[row.playerID];
     if (!name) continue;
@@ -117,7 +118,7 @@ export function buildPitcherSeasons(people, pitching, settings) {
 // the rest of the app uses. Cheap to re-run when only settings change because
 // the CSV parsing (the slow part) happens once upstream in useLahmanData.
 export function buildPlayerSeasons(people, batting, fielding, settings) {
-  const { startYear, endYear, minPA } = settings;
+  const { startYear, endYear, minPA, includeUnknownTeams = false } = settings;
 
   // People.csv → name map + batting-hand map
   const nameMap = {}, batsMap = {};
@@ -155,8 +156,9 @@ export function buildPlayerSeasons(people, batting, fielding, settings) {
     const year = +row.yearID;
     if (year < startYear || year > endYear) continue;
 
-    const gameTeam = LAHMAN_TO_GAME[row.teamID];
-    if (!gameTeam) continue;                    // defunct franchise
+    const mappedTeam = LAHMAN_TO_GAME[row.teamID];
+    const gameTeam = mappedTeam || (includeUnknownTeams ? row.teamID : null);
+    if (!gameTeam) continue;                    // defunct/unsupported franchise
 
     const name = nameMap[row.playerID];
     if (!name) continue;

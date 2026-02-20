@@ -189,6 +189,17 @@ describe("buildPlayerSeasons — Lahman → game team mapping", () => {
     const records = buildPlayerSeasons(makePeople(), makeBatting({ teamID: "ZZZ" }), makeFielding({ teamID: "ZZZ" }), DEFAULT_SETTINGS);
     expect(records).toHaveLength(0);
   });
+
+  it("keeps unknown historical teamID when includeUnknownTeams is true", () => {
+    const records = buildPlayerSeasons(
+      makePeople(),
+      makeBatting({ teamID: "ML1" }),
+      makeFielding({ teamID: "ML1" }),
+      { ...DEFAULT_SETTINGS, includeUnknownTeams: true }
+    );
+    expect(records).toHaveLength(1);
+    expect(records[0].team).toBe("ML1");
+  });
 });
 
 // ─── buildPlayerSeasons — year filtering ─────────────────────────────────────

@@ -675,7 +675,7 @@ export default function App() {
   // so short partial seasons (e.g. Ruiz's 2025 LAD cup with 4 SB in 23 PA)
   // aren't silently dropped from leaderboard aggregates.
   const pinpointSeasons = useMemo(() =>
-    raw ? buildPlayerSeasons(raw.people, raw.batting, raw.fielding, { ...settings, minPA: 1 }) : [],
+    raw ? buildPlayerSeasons(raw.people, raw.batting, raw.fielding, { ...settings, minPA: 1, includeUnknownTeams: true }) : [],
     [raw, settings]
   );
   // Combined pool for player search — lets users find any player (hitter or pitcher)
