@@ -836,7 +836,7 @@ export default function App() {
             )}
           </>
         ) : (
-          <PinpointChallenge playerSeasons={pinpointSeasons} headshots={headshots} />
+          <PinpointChallenge playerSeasons={pinpointSeasons} pitcherSeasons={pitcherSeasons} headshots={headshots} />
         )}
       </div>
     </div>

@@ -506,8 +506,12 @@ function GameOverCard({ guesses, strikes, score, onPlayAgain }) {
 // ─────────────────────────────────────────────────────────────────────────────
 // MAIN COMPONENT
 // ─────────────────────────────────────────────────────────────────────────────
-export default function PinpointChallenge({ playerSeasons = [], headshots = {} }) {
-  const leaderboards     = useMemo(() => buildLeaderboardsFromData(playerSeasons), [playerSeasons]);
+export default function PinpointChallenge({ playerSeasons = [], pitcherSeasons = [], headshots = {} }) {
+  const combinedSeasons = useMemo(
+    () => [...playerSeasons, ...pitcherSeasons],
+    [playerSeasons, pitcherSeasons]
+  );
+  const leaderboards     = useMemo(() => buildLeaderboardsFromData(combinedSeasons), [combinedSeasons]);
   const playerNamesByType = useMemo(() => buildPlayerNamesByType(leaderboards), [leaderboards]);
 
   // "both" | "batting" | "pitching"
