@@ -734,8 +734,7 @@ export default function App() {
   const newGame = () => { setPuzzle(generatePuzzle(playerSeasons, pitcherSeasons, 5)); setSubmissions({}); setWrongAttempts({}); };
 
   if (csvError) return <div style={{ minHeight:"100vh",background:"#111318",color:"#ef4444",display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"system-ui",padding:"24px",textAlign:"center" }}>Failed to load Lahman CSVs: {csvError}<br/><span style={{color:"rgba(255,255,255,0.4)",fontSize:"13px"}}>Ensure public/lahman-folder/ contains People.csv, Batting.csv, Fielding.csv</span></div>;
-  if (loading) return <LoadingScreen />;
-  if (!puzzle && activePage === "statpad") return null;
+  if (loading || !puzzle) return <LoadingScreen />;
 
   return (
     <div style={{ minHeight:"100vh",background:"#111318",color:"#fff",fontFamily:"-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif" }}>
