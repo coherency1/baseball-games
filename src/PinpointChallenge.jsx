@@ -3,6 +3,24 @@ import { useState, useEffect, useRef, useMemo } from "react";
 // Strip diacritics so "acuna" matches "Acuña", "pena" matches "Peña", etc.
 const deburr = s => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 
+// Look up a headshot URL, trying both exact name and accent-stripped name.
+const getHeadshot = (hs, name) => hs[name] || hs[deburr(name)] || null;
+
+// Circular player photo — renders nothing if no URL available or image fails to load.
+function PlayerHeadshot({ name, headshots, size }) {
+  const [err, setErr] = useState(false);
+  const src = getHeadshot(headshots, name);
+  if (!src || err) return null;
+  return (
+    <img
+      src={src}
+      alt={name}
+      onError={() => setErr(true)}
+      style={{ width: size, height: size, borderRadius: "50%", objectFit: "cover", objectPosition: "top center", flexShrink: 0 }}
+    />
+  );
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // DATA — derived directly from playerSeasons (no separate fetch needed)
 // ─────────────────────────────────────────────────────────────────────────────
@@ -160,7 +178,10 @@ function CategoryChip({ category }) {
   );
 }
 
-function CorrectCard({ guess, statLabel }) {
+function CorrectCard({ guess, statLabel, headshots = {} }) {
+  const [photoErr, setPhotoErr] = useState(false);
+  const photoSrc = getHeadshot(headshots, guess.name);
+  const showPhoto = !!photoSrc && !photoErr;
   return (
     <div style={{
       display: "flex", alignItems: "center", gap: "12px",
@@ -168,13 +189,28 @@ function CorrectCard({ guess, statLabel }) {
       border: "1px solid rgba(34,197,94,0.22)",
       borderRadius: "10px", padding: "11px 14px",
     }}>
-      <div style={{
-        width: "42px", height: "42px", borderRadius: "50%", flexShrink: 0,
-        background: "rgba(34,197,94,0.14)", border: "2px solid rgba(34,197,94,0.38)",
-        display: "flex", alignItems: "center", justifyContent: "center",
-        fontSize: "13px", fontWeight: 900, color: "#22c55e",
-      }}>
-        #{guess.rank}
+      <div style={{ position: "relative", flexShrink: 0 }}>
+        {showPhoto ? (
+          <>
+            <img src={photoSrc} alt={guess.name} onError={() => setPhotoErr(true)}
+                 style={{ width: 42, height: 42, borderRadius: "50%", objectFit: "cover", objectPosition: "top center", display: "block" }} />
+            <div style={{ position: "absolute", bottom: -2, right: -2, width: 18, height: 18, borderRadius: "50%",
+                          background: "#22c55e", border: "1.5px solid #111318",
+                          display: "flex", alignItems: "center", justifyContent: "center",
+                          fontSize: "8px", fontWeight: 900, color: "#fff" }}>
+              {guess.rank}
+            </div>
+          </>
+        ) : (
+          <div style={{
+            width: "42px", height: "42px", borderRadius: "50%", flexShrink: 0,
+            background: "rgba(34,197,94,0.14)", border: "2px solid rgba(34,197,94,0.38)",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            fontSize: "13px", fontWeight: 900, color: "#22c55e",
+          }}>
+            #{guess.rank}
+          </div>
+        )}
       </div>
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{
@@ -199,7 +235,10 @@ function CorrectCard({ guess, statLabel }) {
   );
 }
 
-function FeaturedGuessCard({ guess, statLabel }) {
+function FeaturedGuessCard({ guess, statLabel, headshots = {} }) {
+  const [photoErr, setPhotoErr] = useState(false);
+  const photoSrc = getHeadshot(headshots, guess.name);
+  const showPhoto = !!photoSrc && !photoErr;
   return (
     <div style={{
       display: "flex", alignItems: "center", gap: "14px",
@@ -208,13 +247,28 @@ function FeaturedGuessCard({ guess, statLabel }) {
       borderRadius: "12px", padding: "16px 18px",
       boxShadow: "0 0 24px rgba(34,197,94,0.1)",
     }}>
-      <div style={{
-        width: "56px", height: "56px", borderRadius: "50%", flexShrink: 0,
-        background: "rgba(34,197,94,0.18)", border: "2px solid rgba(34,197,94,0.5)",
-        display: "flex", alignItems: "center", justifyContent: "center",
-        fontSize: "14px", fontWeight: 900, color: "#22c55e",
-      }}>
-        #{guess.rank}
+      <div style={{ position: "relative", flexShrink: 0 }}>
+        {showPhoto ? (
+          <>
+            <img src={photoSrc} alt={guess.name} onError={() => setPhotoErr(true)}
+                 style={{ width: 56, height: 56, borderRadius: "50%", objectFit: "cover", objectPosition: "top center", display: "block", border: "2px solid rgba(34,197,94,0.5)" }} />
+            <div style={{ position: "absolute", bottom: -2, right: -2, width: 22, height: 22, borderRadius: "50%",
+                          background: "#22c55e", border: "2px solid #111318",
+                          display: "flex", alignItems: "center", justifyContent: "center",
+                          fontSize: "9px", fontWeight: 900, color: "#fff" }}>
+              {guess.rank}
+            </div>
+          </>
+        ) : (
+          <div style={{
+            width: "56px", height: "56px", borderRadius: "50%", flexShrink: 0,
+            background: "rgba(34,197,94,0.18)", border: "2px solid rgba(34,197,94,0.5)",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            fontSize: "14px", fontWeight: 900, color: "#22c55e",
+          }}>
+            #{guess.rank}
+          </div>
+        )}
       </div>
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ fontSize: "10px", color: "rgba(255,255,255,0.28)", letterSpacing: "0.1em", marginBottom: "3px" }}>
@@ -466,7 +520,7 @@ function GameOverCard({ guesses, strikes, score, onPlayAgain }) {
 // ─────────────────────────────────────────────────────────────────────────────
 // MAIN COMPONENT
 // ─────────────────────────────────────────────────────────────────────────────
-export default function PinpointChallenge({ playerSeasons = [] }) {
+export default function PinpointChallenge({ playerSeasons = [], headshots = {} }) {
   const leaderboards     = useMemo(() => buildLeaderboardsFromData(playerSeasons), [playerSeasons]);
   const playerNamesByType = useMemo(() => buildPlayerNamesByType(leaderboards), [leaderboards]);
 
@@ -736,7 +790,7 @@ export default function PinpointChallenge({ playerSeasons = [] }) {
       {/* ── CORRECT GUESSES BOARD ── */}
       {lastCorrectGuess && (
         <div style={{ marginBottom: "4px" }}>
-          <FeaturedGuessCard guess={lastCorrectGuess} statLabel={category.statLabel} />
+          <FeaturedGuessCard guess={lastCorrectGuess} statLabel={category.statLabel} headshots={headshots} />
           <div style={{ height: "1px", background: "rgba(255,255,255,0.07)", margin: "14px 0" }} />
           <div style={{
             fontSize: "10px", fontWeight: 700, color: "rgba(255,255,255,0.22)",
@@ -746,7 +800,7 @@ export default function PinpointChallenge({ playerSeasons = [] }) {
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
             {sortedCorrect.map(g => (
-              <CorrectCard key={g.name} guess={g} statLabel={category.statLabel} />
+              <CorrectCard key={g.name} guess={g} statLabel={category.statLabel} headshots={headshots} />
             ))}
           </div>
         </div>
