@@ -26,7 +26,7 @@ function PlayerHeadshot({ name, headshots, size }) {
 // ─────────────────────────────────────────────────────────────────────────────
 // DATA — derived directly from playerSeasons (no separate fetch needed)
 // ─────────────────────────────────────────────────────────────────────────────
-function buildLeaderboardsFromData(playerSeasons, topN = 150) {
+export function buildLeaderboardsFromData(playerSeasons, topN = 150) {
   if (!playerSeasons.length) return [];
 
   const years = [...new Set(playerSeasons.map(p => p.year))].sort((a, b) => a - b);
@@ -38,8 +38,14 @@ function buildLeaderboardsFromData(playerSeasons, topN = 150) {
   function aggregate(seasons, statKeys) {
     const map = {};
     for (const ps of seasons) {
-      if (!map[ps.name]) map[ps.name] = Object.fromEntries(statKeys.map(k => [k, 0]));
-      for (const k of statKeys) map[ps.name][k] += ps[k] || 0;
+      const key = ps.playerID || ps.name;
+      if (!map[key]) {
+        map[key] = {
+          name: ps.name,
+          ...Object.fromEntries(statKeys.map(k => [k, 0])),
+        };
+      }
+      for (const k of statKeys) map[key][k] += ps[k] || 0;
     }
     return map;
   }
@@ -48,11 +54,11 @@ function buildLeaderboardsFromData(playerSeasons, topN = 150) {
   const pitMap = aggregate(pitchers, ["SO"]);
 
   function makeRanked(careerMap, stat, roundDec = 0) {
-    const sorted = Object.entries(careerMap)
-      .sort(([, a], [, b]) => b[stat] - a[stat])
+    const sorted = Object.values(careerMap)
+      .sort((a, b) => b[stat] - a[stat])
       .slice(0, topN)
-      .map(([name, s]) => ({
-        name,
+      .map((s) => ({
+        name: s.name,
         value: roundDec ? Math.round(s[stat] * 10 ** roundDec) / 10 ** roundDec
                         : Math.round(s[stat]),
       }));
@@ -500,8 +506,12 @@ function GameOverCard({ guesses, strikes, score, onPlayAgain }) {
 // ─────────────────────────────────────────────────────────────────────────────
 // MAIN COMPONENT
 // ─────────────────────────────────────────────────────────────────────────────
-export default function PinpointChallenge({ playerSeasons = [], headshots = {} }) {
-  const leaderboards     = useMemo(() => buildLeaderboardsFromData(playerSeasons), [playerSeasons]);
+export default function PinpointChallenge({ playerSeasons = [], pitcherSeasons = [], headshots = {} }) {
+  const combinedSeasons = useMemo(
+    () => [...playerSeasons, ...pitcherSeasons],
+    [playerSeasons, pitcherSeasons]
+  );
+  const leaderboards     = useMemo(() => buildLeaderboardsFromData(combinedSeasons), [combinedSeasons]);
   const playerNamesByType = useMemo(() => buildPlayerNamesByType(leaderboards), [leaderboards]);
 
   // "both" | "batting" | "pitching"
