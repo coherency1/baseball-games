@@ -220,44 +220,58 @@ function CorrectCard({ guess, statLabel }) {
 }
 
 function FeaturedGuessCard({ guess, statLabel }) {
+  const isCorrect  = !guess.isStrike;
+  const isNearMiss = guess.isNearMiss;
+
+  const bg          = isCorrect  ? "rgba(34,197,94,0.12)"   : isNearMiss ? "rgba(245,158,11,0.08)"  : "rgba(239,68,68,0.08)";
+  const border      = isCorrect  ? "rgba(34,197,94,0.38)"   : isNearMiss ? "rgba(245,158,11,0.3)"   : "rgba(239,68,68,0.3)";
+  const glow        = isCorrect  ? "rgba(34,197,94,0.1)"    : "none";
+  const circleBg    = isCorrect  ? "rgba(34,197,94,0.18)"   : isNearMiss ? "rgba(245,158,11,0.14)"  : "rgba(239,68,68,0.14)";
+  const circleBdr   = isCorrect  ? "rgba(34,197,94,0.5)"    : isNearMiss ? "rgba(245,158,11,0.4)"   : "rgba(239,68,68,0.3)";
+  const circleClr   = isCorrect  ? "#22c55e"                : isNearMiss ? "#f59e0b"                : "#ef4444";
+  const nameColor   = isCorrect  ? "#fff"                   : isNearMiss ? "#fcd34d"                : "#fca5a5";
+  const subLabel    = isCorrect  ? `+${guess.rank} pts`     : isNearMiss ? "outside top 100"        : "not in top 150";
+  const valueColor  = isCorrect  ? "#22c55e"                : "#f59e0b";
+
   return (
     <div style={{
       display: "flex", alignItems: "center", gap: "14px",
-      background: "rgba(34,197,94,0.12)",
-      border: "1px solid rgba(34,197,94,0.38)",
+      background: bg, border: `1px solid ${border}`,
       borderRadius: "12px", padding: "16px 18px",
-      boxShadow: "0 0 24px rgba(34,197,94,0.1)",
+      boxShadow: glow !== "none" ? `0 0 24px ${glow}` : undefined,
     }}>
       <div style={{
         width: "56px", height: "56px", borderRadius: "50%", flexShrink: 0,
-        background: "rgba(34,197,94,0.18)", border: "2px solid rgba(34,197,94,0.5)",
+        background: circleBg, border: `2px solid ${circleBdr}`,
         display: "flex", alignItems: "center", justifyContent: "center",
-        fontSize: "14px", fontWeight: 900, color: "#22c55e",
+        fontSize: isCorrect || isNearMiss ? "14px" : "22px", fontWeight: 900, color: circleClr,
       }}>
-        #{guess.rank}
+        {isCorrect ? `#${guess.rank}` : isNearMiss ? "~" : "✕"}
       </div>
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ fontSize: "10px", color: "rgba(255,255,255,0.28)", letterSpacing: "0.1em", marginBottom: "3px" }}>
           LAST GUESS
         </div>
         <div style={{
-          fontSize: "18px", fontWeight: 900, color: "#fff",
+          fontSize: "18px", fontWeight: 900, color: nameColor,
           whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
         }}>
           {guess.name}
         </div>
         <div style={{ fontSize: "11px", color: "rgba(255,255,255,0.35)", marginTop: "2px" }}>
-          +{guess.rank} pts
+          {subLabel}
         </div>
       </div>
-      <div style={{ textAlign: "right", flexShrink: 0 }}>
-        <div style={{ fontSize: "24px", fontWeight: 900, color: "#22c55e" }}>
-          {formatValue(guess.value, statLabel)}
+      {(isCorrect || isNearMiss) && guess.value != null && (
+        <div style={{ textAlign: "right", flexShrink: 0 }}>
+          <div style={{ fontSize: "24px", fontWeight: 900, color: valueColor }}>
+            {formatValue(guess.value, statLabel)}
+          </div>
+          <div style={{ fontSize: "10px", color: "rgba(255,255,255,0.28)", letterSpacing: "0.05em" }}>
+            {statLabel}
+          </div>
         </div>
-        <div style={{ fontSize: "10px", color: "rgba(255,255,255,0.28)", letterSpacing: "0.05em" }}>
-          {statLabel}
-        </div>
-      </div>
+      )}
     </div>
   );
 }
@@ -274,9 +288,9 @@ function NearMissCard({ guess, statLabel }) {
         width: "42px", height: "42px", borderRadius: "50%", flexShrink: 0,
         background: "rgba(245,158,11,0.14)", border: "2px solid rgba(245,158,11,0.3)",
         display: "flex", alignItems: "center", justifyContent: "center",
-        fontSize: "12px", fontWeight: 900, color: "#f59e0b",
+        fontSize: "20px", fontWeight: 900, color: "#f59e0b",
       }}>
-        #{guess.rank}
+        ~
       </div>
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{
@@ -630,10 +644,13 @@ export default function PinpointChallenge({ playerSeasons = [], headshots = {} }
 
   if (!category) return null;
 
-  const correctGuesses  = guesses.filter(g => !g.isStrike);
-  const strikeGuesses   = guesses.filter(g => g.isStrike);
-  const sortedCorrect   = [...correctGuesses].sort((a, b) => a.rank - b.rank);
-  const lastCorrectGuess = correctGuesses.length > 0 ? correctGuesses[correctGuesses.length - 1] : null;
+  const correctGuesses = guesses.filter(g => !g.isStrike);
+  const allStrikes     = guesses.filter(g => g.isStrike);
+  const sortedCorrect  = [...correctGuesses].sort((a, b) => a.rank - b.rank);
+  const lastGuess      = guesses.length > 0 ? guesses[guesses.length - 1] : null;
+  // Strip the most recent guess from the strike list — it's already shown in the
+  // featured card above, so rendering it again would be a duplicate.
+  const strikeGuesses  = lastGuess?.isStrike ? allStrikes.slice(0, -1) : allStrikes;
 
   return (
     <div style={{ paddingBottom: "48px" }}>
@@ -753,22 +770,26 @@ export default function PinpointChallenge({ playerSeasons = [], headshots = {} }
         </div>
       )}
 
-      {/* ── CORRECT GUESSES BOARD ── */}
-      {lastCorrectGuess && (
+      {/* ── FEATURED LAST GUESS + CORRECT BOARD ── */}
+      {lastGuess && (
         <div style={{ marginBottom: "4px" }}>
-          <FeaturedGuessCard guess={lastCorrectGuess} statLabel={category.statLabel} headshots={headshots} />
-          <div style={{ height: "1px", background: "rgba(255,255,255,0.07)", margin: "14px 0" }} />
-          <div style={{
-            fontSize: "10px", fontWeight: 700, color: "rgba(255,255,255,0.22)",
-            letterSpacing: "0.1em", padding: "4px 0 10px",
-          }}>
-            IN THE TOP 100
-          </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-            {sortedCorrect.map(g => (
-              <CorrectCard key={g.name} guess={g} statLabel={category.statLabel} headshots={headshots} />
-            ))}
-          </div>
+          <FeaturedGuessCard guess={lastGuess} statLabel={category.statLabel} />
+          {sortedCorrect.length > 0 && (
+            <>
+              <div style={{ height: "1px", background: "rgba(255,255,255,0.07)", margin: "14px 0" }} />
+              <div style={{
+                fontSize: "10px", fontWeight: 700, color: "rgba(255,255,255,0.22)",
+                letterSpacing: "0.1em", padding: "4px 0 10px",
+              }}>
+                IN THE TOP 100
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                {sortedCorrect.map(g => (
+                  <CorrectCard key={g.name} guess={g} statLabel={category.statLabel} />
+                ))}
+              </div>
+            </>
+          )}
         </div>
       )}
 
