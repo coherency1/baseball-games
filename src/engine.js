@@ -331,6 +331,10 @@ export function generatePuzzle(playerSeasons, pitcherSeasons = [], numRows = 5, 
       const c3 = isPitcherPuzzle ? genPitcherCol3() : genCol3();
       const cats = [c1, c2, c3];
 
+      // Reject duplicate team: same team abbreviation already used in another row
+      if (c1.type === CATEGORY_TYPES.TEAM &&
+          usedRows.some(r => r[0].type === CATEGORY_TYPES.TEAM && r[0].value === c1.value)) continue;
+
       // Reject only if a player-season could satisfy this AND an existing row
       if (usedRows.some(existing => rowsOverlap(existing, cats))) continue;
 
