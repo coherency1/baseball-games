@@ -95,6 +95,7 @@ export function buildPitcherSeasons(people, pitching, settings) {
     const bb9  = ip > 0 ? +(bb / ip * 9).toFixed(1) : 0;
 
     records.push({
+      playerID: row.playerID,
       name,
       team: gameTeam,
       year,
@@ -197,6 +198,7 @@ export function buildPlayerSeasons(people, batting, fielding, settings) {
     const bats   = batsMap[row.playerID] || "R";
 
     records.push({
+      playerID: row.playerID,
       name, team: gameTeam, year, pos, bats,
       HR: hr, RBI: rbi, R: r, H: h, SB: sb, BB: bb,
       SO: so, "2B": dbl, "3B": trp, PA: pa, AB: ab,
