@@ -47,7 +47,7 @@ def aggregate_lahman_batting(bat_df, name_map):
     """
     Group Lahman Batting.csv by playerID, sum counting stats.
     PA = AB + BB + HBP + SF + SH  (standard approximation).
-    Returns dict: "First Last" -> {PA, HR, RBI, H, BB, R, SB, 2B, 3B}
+    Returns dict: playerID -> {name, PA, HR, RBI, H, BB, R, SB, 2B, 3B}
     """
     import pandas as pd
 
@@ -66,7 +66,8 @@ def aggregate_lahman_batting(bat_df, name_map):
         name = name_map.get(pid, "")
         if not name or not name.strip():
             continue
-        result[name] = {
+        result[pid] = {
+            "name": name,
             "PA":  int(row["PA"]),
             "HR":  int(row["HR"]),
             "RBI": int(row["RBI"]),
@@ -85,7 +86,7 @@ def aggregate_lahman_pitching(pit_df, name_map):
     Group Lahman Pitching.csv by playerID, sum counting stats.
     Lahman stores IPouts (outs recorded), so IP = IPouts / 3 exactly.
     K/9 = (SO / IP) * 9, computed after aggregation.
-    Returns dict: "First Last" -> {IP, SO, BB, K/9, W, SV, CG, SHO}
+    Returns dict: playerID -> {name, IP, SO, BB, K/9, W, SV, CG, SHO}
     """
     pit_df = pit_df.copy()
     for col in ["IPouts", "SO", "BB", "W", "SV", "CG", "SHO"]:
@@ -102,7 +103,8 @@ def aggregate_lahman_pitching(pit_df, name_map):
         name = name_map.get(pid, "")
         if not name or not name.strip():
             continue
-        result[name] = {
+        result[pid] = {
+            "name": name,
             "IP":  round(row["IP"], 1),
             "SO":  int(row["SO"]),
             "BB":  int(row["BB"]),
@@ -134,20 +136,20 @@ def build_top_n(careers, stat_key, min_key=None, min_val=0, top_n=150):
     Returns list of {"rank": int, "name": str, "value": numeric}
     """
     qualified = [
-        (name, stats)
-        for name, stats in careers.items()
+        stats
+        for stats in careers.values()
         if (min_key is None or stats.get(min_key, 0) >= min_val)
         and stats.get(stat_key) is not None
     ]
-    sorted_q = sorted(qualified, key=lambda x: x[1].get(stat_key, 0), reverse=True)
+    sorted_q = sorted(qualified, key=lambda stats: stats.get(stat_key, 0), reverse=True)
     top = sorted_q[:top_n]
 
     result = []
-    for rank, (name, stats) in enumerate(top, start=1):
+    for rank, stats in enumerate(top, start=1):
         val = stats[stat_key]
         if isinstance(val, float):
             val = round(val, 1)
-        result.append({"rank": rank, "name": name, "value": val})
+        result.append({"rank": rank, "name": stats["name"], "value": val})
     return result
 
 

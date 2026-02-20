@@ -321,9 +321,10 @@ function PlayerSearchModal({ seasons, fixedYear = null, onSelect, onClose }) {
   const playerIndex = useMemo(() => {
     const map = {};
     seasons.forEach(ps => {
-      if (!map[ps.name]) map[ps.name] = { name:ps.name, minYear:ps.year, maxYear:ps.year };
-      map[ps.name].minYear = Math.min(map[ps.name].minYear, ps.year);
-      map[ps.name].maxYear = Math.max(map[ps.name].maxYear, ps.year);
+      const key = ps.playerID || ps.name;
+      if (!map[key]) map[key] = { key, playerID: ps.playerID || null, name: ps.name, minYear: ps.year, maxYear: ps.year };
+      map[key].minYear = Math.min(map[key].minYear, ps.year);
+      map[key].maxYear = Math.max(map[key].maxYear, ps.year);
     });
     return Object.values(map);
   }, [seasons]);
@@ -334,16 +335,22 @@ function PlayerSearchModal({ seasons, fixedYear = null, onSelect, onClose }) {
   const filtered = allFiltered.slice(0, 15);
 
   const playerYears = selectedPlayer
-    ? [...new Set(seasons.filter(ps => ps.name === selectedPlayer).map(ps => ps.year))].sort((a,b)=>b-a)
+    ? [...new Set(seasons
+      .filter(ps => (selectedPlayer.playerID
+        ? ps.playerID === selectedPlayer.playerID
+        : ps.name === selectedPlayer.name))
+      .map(ps => ps.year))].sort((a,b)=>b-a)
     : [];
 
-  const handleSelectPlayer = (name) => {
+  const handleSelectPlayer = (player) => {
     // Row is pinned to a single year — no picker needed.
-    if (fixedYear !== null) { onSelect(name, fixedYear); return; }
+    if (fixedYear !== null) { onSelect(player.name, fixedYear); return; }
     // Player only has one season in the whole dataset — auto-submit.
-    const years = [...new Set(seasons.filter(ps => ps.name === name).map(ps => ps.year))];
-    if (years.length === 1) { onSelect(name, years[0]); return; }
-    setSelectedPlayer(name);
+    const years = [...new Set(seasons
+      .filter(ps => (player.playerID ? ps.playerID === player.playerID : ps.name === player.name))
+      .map(ps => ps.year))];
+    if (years.length === 1) { onSelect(player.name, years[0]); return; }
+    setSelectedPlayer(player);
   };
 
   return (
@@ -362,7 +369,7 @@ function PlayerSearchModal({ seasons, fixedYear = null, onSelect, onClose }) {
           </div>
           <div style={{ maxHeight:"300px",overflowY:"auto" }}>
             {filtered.map(p => (
-              <div key={p.name} onClick={()=>handleSelectPlayer(p.name)} style={{ display:"flex",justifyContent:"space-between",alignItems:"center",padding:"12px 20px",cursor:"pointer",borderBottom:"1px solid rgba(255,255,255,0.05)" }}
+              <div key={p.key} onClick={()=>handleSelectPlayer(p)} style={{ display:"flex",justifyContent:"space-between",alignItems:"center",padding:"12px 20px",cursor:"pointer",borderBottom:"1px solid rgba(255,255,255,0.05)" }}
                 onMouseOver={e=>e.currentTarget.style.background="rgba(255,255,255,0.05)"} onMouseOut={e=>e.currentTarget.style.background="transparent"}>
                 <span style={{ color:"#fff",fontSize:"15px",fontWeight:500 }}>{p.name}</span>
                 <span style={{ color:"rgba(255,255,255,0.35)",fontSize:"13px" }}>{p.minYear} - {p.maxYear}</span>
@@ -375,7 +382,7 @@ function PlayerSearchModal({ seasons, fixedYear = null, onSelect, onClose }) {
           <div style={{ padding:"16px 20px",borderBottom:"1px solid rgba(255,255,255,0.08)" }}>
             <div style={{ display:"flex",alignItems:"center",gap:"8px" }}>
               <span onClick={()=>{setSelectedPlayer(null);setSelectedYear(null);}} style={{ color:"rgba(255,255,255,0.4)",cursor:"pointer",fontSize:"18px" }}>&larr;</span>
-              <span style={{ color:"#fff",fontSize:"16px",fontWeight:600 }}>{selectedPlayer}</span>
+              <span style={{ color:"#fff",fontSize:"16px",fontWeight:600 }}>{selectedPlayer.name}</span>
             </div>
           </div>
           <div style={{ maxHeight:"300px",overflowY:"auto" }}>
@@ -387,7 +394,7 @@ function PlayerSearchModal({ seasons, fixedYear = null, onSelect, onClose }) {
             ))}
           </div>
           <div style={{ padding:"12px 16px" }}>
-            <button onClick={()=>{if(selectedPlayer&&selectedYear)onSelect(selectedPlayer,selectedYear);}} disabled={!selectedYear}
+            <button onClick={()=>{if(selectedPlayer&&selectedYear)onSelect(selectedPlayer.name,selectedYear);}} disabled={!selectedYear}
               style={{ width:"100%",padding:"14px",borderRadius:"10px",border:"none",background:selectedYear?"#22c55e":"rgba(255,255,255,0.1)",color:selectedYear?"#fff":"rgba(255,255,255,0.3)",fontSize:"15px",fontWeight:700,cursor:selectedYear?"pointer":"default" }}>
               Submit
             </button>
