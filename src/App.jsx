@@ -299,12 +299,14 @@ function PlayerPhoto({ name, headshots, size = 40 }) {
   const src = getHeadshot(headshots, name);
   if (!src || err) return null;
   return (
-    <img
-      src={src}
-      alt={name}
-      onError={() => setErr(true)}
-      style={{ width:size,height:size,borderRadius:"50%",objectFit:"cover",objectPosition:"top center",flexShrink:0 }}
-    />
+    <div style={{ width:size,height:size,borderRadius:"50%",overflow:"hidden",flexShrink:0,background:"#1f2937",display:"flex",alignItems:"center",justifyContent:"center" }}>
+      <img
+        src={src}
+        alt={name}
+        onError={() => setErr(true)}
+        style={{ width:"100%",height:"100%",objectFit:"contain",objectPosition:"center" }}
+      />
+    </div>
   );
 }
 
