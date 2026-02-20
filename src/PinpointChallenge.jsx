@@ -17,7 +17,7 @@ function PlayerHeadshot({ name, headshots, size }) {
         src={src}
         alt={name}
         onError={() => setErr(true)}
-        style={{ width: "100%", height: "100%", objectFit: "contain", objectPosition: "center" }}
+        style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "center 20%" }}
       />
     </div>
   );
@@ -196,7 +196,7 @@ function CorrectCard({ guess, statLabel, headshots = {} }) {
           <>
             <div style={{ width: 42, height: 42, borderRadius: "50%", overflow: "hidden", background: "#1f2937" }}>
               <img src={photoSrc} alt={guess.name} onError={() => setPhotoErr(true)}
-                   style={{ width: "100%", height: "100%", objectFit: "contain", objectPosition: "center", display: "block" }} />
+                   style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "center 20%", display: "block" }} />
             </div>
             <div style={{ position: "absolute", bottom: -2, right: -2, width: 18, height: 18, borderRadius: "50%",
                           background: "#22c55e", border: "1.5px solid #111318",
@@ -256,7 +256,7 @@ function FeaturedGuessCard({ guess, statLabel, headshots = {} }) {
           <>
             <div style={{ width: 56, height: 56, borderRadius: "50%", overflow: "hidden", background: "#1f2937", border: "2px solid rgba(34,197,94,0.5)", boxSizing: "border-box" }}>
               <img src={photoSrc} alt={guess.name} onError={() => setPhotoErr(true)}
-                   style={{ width: "100%", height: "100%", objectFit: "contain", objectPosition: "center", display: "block" }} />
+                   style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "center 20%", display: "block" }} />
             </div>
             <div style={{ position: "absolute", bottom: -2, right: -2, width: 22, height: 22, borderRadius: "50%",
                           background: "#22c55e", border: "2px solid #111318",

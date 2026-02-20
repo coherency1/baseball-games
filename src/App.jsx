@@ -304,7 +304,7 @@ function PlayerPhoto({ name, headshots, size = 40 }) {
         src={src}
         alt={name}
         onError={() => setErr(true)}
-        style={{ width:"100%",height:"100%",objectFit:"contain",objectPosition:"center" }}
+        style={{ width:"100%",height:"100%",objectFit:"cover",objectPosition:"center 20%" }}
       />
     </div>
   );
@@ -404,8 +404,8 @@ function ResultCard({ playerName, year, team, score, statLabel, percentile, onCl
   return (
     <div style={{ background:tier.bg,borderRadius:"12px",padding:"14px 18px",border:`1px solid ${tier.border}`,display:"flex",alignItems:"center",justifyContent:"space-between",gap:"12px",cursor:"pointer" }} onClick={onClick}>
       <div style={{ display:"flex",alignItems:"center",gap:"12px",minWidth:0 }}>
-        <PlayerPhoto name={playerName} headshots={headshots} size={44} />
         <TeamLogo team={team} size={36} />
+        <PlayerPhoto name={playerName} headshots={headshots} size={44} />
         <div>
           <div style={{ fontSize:"11px",color:tier.text,opacity:0.7,letterSpacing:"0.05em" }}>{playerName.split(" ")[0].toUpperCase()}</div>
           <div style={{ fontSize:"18px",fontWeight:800,color:tier.text }}>{playerName.split(" ").slice(1).join(" ").toUpperCase()}</div>
