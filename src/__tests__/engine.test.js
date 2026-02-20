@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { matchesCategory, findMatchingSeasons, CATEGORY_TYPES, SCORING_STATS } from "../engine.js";
+import { matchesCategory, findMatchingSeasons, generatePuzzle, CATEGORY_TYPES, SCORING_STATS } from "../engine.js";
 
 // ─── Fixtures ─────────────────────────────────────────────────────────────────
 
@@ -326,5 +326,184 @@ describe("SCORING_STATS", () => {
     expect(keys).toContain("BB");
     expect(keys).toContain("2B");
     expect(keys).toContain("XBH");
+  });
+});
+
+// ─── generatePuzzle — answer quality ─────────────────────────────────────────
+//
+// Synthetic dataset: 30 MLB teams × 10 years (2010-2019)
+//   Pitchers:  4 starters (GS≥28, IP≥180, W≥13, SO≥160) +
+//              3 closers  (SV≥25, GS=0) per team per year  →  2 100 seasons
+//   Hitters:   8 per team per year across varied positions, hands, stats → 2 400 seasons
+//
+// With these counts, any reasonable (col1 × col2 × col3) combination produced by
+// the generator can find 8–15 matching seasons in the primary loop, or falls back
+// to the secondary (ALL_TEAMS, no max cap) which always has ≥8.
+
+const ALL_TEAMS = [
+  "NYY","BOS","BAL","TBR","TOR",  // AL East
+  "CLE","DET","MIN","CWS","KCR",  // AL Central
+  "HOU","OAK","SEA","LAA","TEX",  // AL West
+  "ATL","NYM","PHI","MIA","WSN",  // NL East
+  "CHC","STL","MIL","CIN","PIT",  // NL Central
+  "LAD","SFG","ARI","COL","SDP",  // NL West
+];
+const TEST_YEARS = Array.from({ length: 10 }, (_, i) => 2010 + i);
+
+const syntheticPitchers = ALL_TEAMS.flatMap(team =>
+  TEST_YEARS.flatMap(year => [
+    // 4 starters — span stats to cover all pitcher col3 thresholds
+    ...Array.from({ length: 4 }, (_, i) => ({
+      name: `SP_${team}_${year}_${i}`, team, year,
+      GS: 28 + i, IP: 180 + i * 10, W: 13 + i * 2, SO: 160 + i * 20, SV: 0,
+      ERA: 2.80 + i * 0.40, WHIP: 1.10 + i * 0.08,
+    })),
+    // 3 closers — SV thresholds well above both 10 and 20
+    ...Array.from({ length: 3 }, (_, i) => ({
+      name: `CL_${team}_${year}_${i}`, team, year,
+      GS: 0, IP: 55 + i * 5, W: 2 + i, SO: 55 + i * 10, SV: 25 + i * 10,
+      ERA: 2.50 + i * 0.50, WHIP: 0.90 + i * 0.10,
+    })),
+  ])
+);
+
+const syntheticHitters = ALL_TEAMS.flatMap(team =>
+  TEST_YEARS.flatMap(year =>
+    Array.from({ length: 8 }, (_, i) => ({
+      name: `H_${team}_${year}_${i}`, team, year,
+      pos:  ["OF", "OF", "1B", "2B", "3B", "SS", "C",  "OF"][i],
+      bats: ["R",  "L",  "S",  "R",  "L",  "R",  "R",  "L" ][i],
+      HR:   [42,   37,   31,   26,   33,   21,   23,   35  ][i],
+      SB:   [6,    9,    46,   44,   22,   32,   7,    4   ][i],
+      RBI:  [108,  100,  90,   85,   96,   72,   78,   112 ][i],
+      H:    [188,  182,  170,  168,  164,  150,  152,  192 ][i],
+      BB:   [82,   76,   42,   55,   66,   50,   45,   86  ][i],
+      "2B": [38,   35,   22,   25,   32,   20,   25,   40  ][i],
+      XBH:  [58,   52,   30,   36,   50,   38,   40,   62  ][i],
+      AVG:  [.308, .302, .312, .288, .298, .268, .272, .320][i],
+      R:    [95,   88,   65,   72,   85,   68,   75,   98  ][i],
+      PA: 600,
+    }))
+  )
+);
+
+describe("generatePuzzle — answer quality (≥8 per row)", () => {
+  it("10 random puzzles all have ≥8 valid answers per row", () => {
+    for (let p = 0; p < 10; p++) {
+      const puzzle = generatePuzzle(syntheticHitters, syntheticPitchers, 5);
+      for (let r = 0; r < puzzle.rows.length; r++) {
+        expect(
+          puzzle.rows[r].validAnswers.length,
+          `puzzle ${p} row ${r} (scoring: ${puzzle.scoringStat.key})`
+        ).toBeGreaterThanOrEqual(8);
+      }
+    }
+  });
+
+  it("SV-scoring puzzle rows each have ≥8 valid answers", () => {
+    for (let p = 0; p < 5; p++) {
+      const puzzle = generatePuzzle(syntheticHitters, syntheticPitchers, 5, "SV");
+      for (let r = 0; r < puzzle.rows.length; r++) {
+        expect(
+          puzzle.rows[r].validAnswers.length,
+          `SV puzzle ${p} row ${r}`
+        ).toBeGreaterThanOrEqual(8);
+      }
+    }
+  });
+
+  it("W-scoring puzzle rows each have ≥8 valid answers", () => {
+    for (let p = 0; p < 5; p++) {
+      const puzzle = generatePuzzle(syntheticHitters, syntheticPitchers, 5, "W");
+      for (let r = 0; r < puzzle.rows.length; r++) {
+        expect(
+          puzzle.rows[r].validAnswers.length,
+          `W puzzle ${p} row ${r}`
+        ).toBeGreaterThanOrEqual(8);
+      }
+    }
+  });
+
+  it("SO-scoring puzzle rows each have ≥8 valid answers", () => {
+    for (let p = 0; p < 5; p++) {
+      const puzzle = generatePuzzle(syntheticHitters, syntheticPitchers, 5, "SO");
+      for (let r = 0; r < puzzle.rows.length; r++) {
+        expect(
+          puzzle.rows[r].validAnswers.length,
+          `SO puzzle ${p} row ${r}`
+        ).toBeGreaterThanOrEqual(8);
+      }
+    }
+  });
+
+  it("ERA-scoring puzzle rows each have ≥8 valid answers", () => {
+    for (let p = 0; p < 5; p++) {
+      const puzzle = generatePuzzle(syntheticHitters, syntheticPitchers, 5, "ERA");
+      for (let r = 0; r < puzzle.rows.length; r++) {
+        expect(
+          puzzle.rows[r].validAnswers.length,
+          `ERA puzzle ${p} row ${r}`
+        ).toBeGreaterThanOrEqual(8);
+      }
+    }
+  });
+
+  it("HR-scoring hitter puzzle rows each have ≥8 valid answers", () => {
+    for (let p = 0; p < 5; p++) {
+      const puzzle = generatePuzzle(syntheticHitters, syntheticPitchers, 5, "HR");
+      for (let r = 0; r < puzzle.rows.length; r++) {
+        expect(
+          puzzle.rows[r].validAnswers.length,
+          `HR puzzle ${p} row ${r}`
+        ).toBeGreaterThanOrEqual(8);
+      }
+    }
+  });
+});
+
+describe("generatePuzzle — role-compatible col3 for pitcher puzzles", () => {
+  it("SV-scoring puzzle never generates IP or GS as col3 constraint", () => {
+    for (let p = 0; p < 10; p++) {
+      const puzzle = generatePuzzle(syntheticHitters, syntheticPitchers, 5, "SV");
+      for (const row of puzzle.rows) {
+        const col3 = row.categories[2];
+        if (col3.type === CATEGORY_TYPES.STAT_THRESHOLD) {
+          expect(
+            col3.value.stat,
+            `SV puzzle col3 should not use starter stat "${col3.value.stat}"`
+          ).not.toMatch(/^(IP|GS|W)$/);
+        }
+      }
+    }
+  });
+
+  it("W-scoring puzzle never generates SV as col3 constraint", () => {
+    for (let p = 0; p < 10; p++) {
+      const puzzle = generatePuzzle(syntheticHitters, syntheticPitchers, 5, "W");
+      for (const row of puzzle.rows) {
+        const col3 = row.categories[2];
+        if (col3.type === CATEGORY_TYPES.STAT_THRESHOLD) {
+          expect(
+            col3.value.stat,
+            `W puzzle col3 should not use closer stat "${col3.value.stat}"`
+          ).not.toBe("SV");
+        }
+      }
+    }
+  });
+
+  it("SO-scoring puzzle never generates SV as col3 constraint", () => {
+    for (let p = 0; p < 10; p++) {
+      const puzzle = generatePuzzle(syntheticHitters, syntheticPitchers, 5, "SO");
+      for (const row of puzzle.rows) {
+        const col3 = row.categories[2];
+        if (col3.type === CATEGORY_TYPES.STAT_THRESHOLD) {
+          expect(
+            col3.value.stat,
+            `SO puzzle col3 should not use closer stat "${col3.value.stat}"`
+          ).not.toBe("SV");
+        }
+      }
+    }
   });
 });

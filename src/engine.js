@@ -265,17 +265,47 @@ function genCol3() {
   return { type: CATEGORY_TYPES.STAT_THRESHOLD, value: o, label: o.label };
 }
 
-// Pitcher-specific column 3: role (starter/closer) or pitching stat threshold
-function genPitcherCol3() {
+// Pitcher-specific column 3 — role-aware to prevent incompatible pairings.
+// SV scoring must use closer-role constraints; W/SO scoring must use starter-
+// role constraints. ERA/WHIP work for both roles.
+function genPitcherCol3(scoringStatKey) {
   const r = Math.random();
+
+  // Saves scoring → closer-only constraints
+  if (scoringStatKey === "SV") {
+    const opts = [
+      { stat: "SV", min: 10, label: "Closer (10+ SV)" },
+      { stat: "SV", min: 20, label: "20+ Saves"        },
+    ];
+    const o = opts[r < 0.5 ? 0 : 1];
+    return { type: CATEGORY_TYPES.STAT_THRESHOLD, value: o, label: o.label };
+  }
+
+  // Wins / Strikeouts scoring → starter-only constraints
+  if (scoringStatKey === "W" || scoringStatKey === "SO") {
+    if (r < 0.22) {
+      return { type: CATEGORY_TYPES.STAT_THRESHOLD, value: { stat: "GS", min: 20 }, label: "SP (20+ GS)" };
+    }
+    const opts = [
+      { stat: "SO", min: 150, label: "150+ Ks"    },
+      { stat: "SO", min: 200, label: "200+ Ks"    },
+      { stat: "W",  min: 12,  label: "12+ Wins"   },
+      { stat: "W",  min: 15,  label: "15+ Wins"   },
+      { stat: "GS", min: 28,  label: "28+ Starts" },
+      { stat: "IP", min: 150, label: "150+ IP"    },
+      { stat: "IP", min: 180, label: "180+ IP"    },
+    ];
+    const o = opts[Math.floor(Math.random() * opts.length)];
+    return { type: CATEGORY_TYPES.STAT_THRESHOLD, value: o, label: o.label };
+  }
+
+  // ERA / WHIP scoring → both starters and closers qualify; use full option set
   if (r < 0.40) {
-    // Starter vs. closer/reliever split
     if (r < 0.22) {
       return { type: CATEGORY_TYPES.STAT_THRESHOLD, value: { stat: "GS", min: 20 }, label: "SP (20+ GS)" };
     }
     return { type: CATEGORY_TYPES.STAT_THRESHOLD, value: { stat: "SV", min: 10 }, label: "Closer (10+ SV)" };
   }
-  // Stat thresholds
   const opts = [
     { stat: "SO",   min: 150, label: "150+ Ks"     },
     { stat: "SO",   min: 200, label: "200+ Ks"     },
@@ -328,7 +358,7 @@ export function generatePuzzle(playerSeasons, pitcherSeasons = [], numRows = 5, 
     for (let attempt = 0; attempt < 150; attempt++) {
       const c1 = genCol1(availableTeams);
       const c2 = genCol2(eraStart, eraEnd, c1.type === CATEGORY_TYPES.TEAM);
-      const c3 = isPitcherPuzzle ? genPitcherCol3() : genCol3();
+      const c3 = isPitcherPuzzle ? genPitcherCol3(scoringStat.key) : genCol3();
       const cats = [c1, c2, c3];
 
       // Reject duplicate team: same team abbreviation already used in another row
@@ -340,7 +370,7 @@ export function generatePuzzle(playerSeasons, pitcherSeasons = [], numRows = 5, 
 
       const matches = findMatchingSeasons(cats, seasonPool);
       // Single-year rows require at least 8 valid answers to keep them fair.
-      const minCount = cats[1].type === CATEGORY_TYPES.YEAR_EXACT ? 8 : 3;
+      const minCount = 8;
       if (matches.length >= minCount && matches.length <= 15) {
         bestRow = { categories: cats, validAnswers: matches };
         break;
@@ -353,11 +383,11 @@ export function generatePuzzle(playerSeasons, pitcherSeasons = [], numRows = 5, 
         const cats = [
           { type: CATEGORY_TYPES.ALL_TEAMS, value: "all", label: "MLB" },
           genCol2(eraStart, eraEnd),
-          isPitcherPuzzle ? genPitcherCol3() : genCol3(),
+          isPitcherPuzzle ? genPitcherCol3(scoringStat.key) : genCol3(),
         ];
         if (usedRows.some(existing => rowsOverlap(existing, cats))) continue;
         const matches = findMatchingSeasons(cats, seasonPool);
-        const minCount = cats[1].type === CATEGORY_TYPES.YEAR_EXACT ? 8 : 3;
+        const minCount = 8;
         if (matches.length >= minCount) {
           bestRow = { categories: cats, validAnswers: matches };
           break;
