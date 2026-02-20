@@ -405,7 +405,6 @@ function ResultCard({ playerName, year, team, score, statLabel, percentile, onCl
     <div style={{ background:tier.bg,borderRadius:"12px",padding:"14px 18px",border:`1px solid ${tier.border}`,display:"flex",alignItems:"center",justifyContent:"space-between",gap:"12px",cursor:"pointer" }} onClick={onClick}>
       <div style={{ display:"flex",alignItems:"center",gap:"12px",minWidth:0 }}>
         <TeamLogo team={team} size={36} />
-        <PlayerPhoto name={playerName} headshots={headshots} size={44} />
         <div>
           <div style={{ fontSize:"11px",color:tier.text,opacity:0.7,letterSpacing:"0.05em" }}>{playerName.split(" ")[0].toUpperCase()}</div>
           <div style={{ fontSize:"18px",fontWeight:800,color:tier.text }}>{playerName.split(" ").slice(1).join(" ").toUpperCase()}</div>
@@ -481,9 +480,7 @@ function Top5Panel({ validAnswers, scoringStatKey, scoringStatLabel, lowerIsBett
       {top5.map((ps, idx) => (
         <div key={`${ps.name}-${ps.year}`} style={{ display:"flex",alignItems:"center",gap:"10px",padding:"7px 12px",borderBottom:idx<4?"1px solid rgba(255,255,255,0.04)":"none" }}>
           <span style={{ width:"16px",fontSize:"11px",color:"rgba(255,255,255,0.25)",fontWeight:700,flexShrink:0 }}>#{idx+1}</span>
-          {getHeadshot(headshots, ps.name)
-            ? <PlayerPhoto name={ps.name} headshots={headshots} size={24} />
-            : <TeamLogo team={ps.team} size={22} />}
+          <TeamLogo team={ps.team} size={22} />
           <span style={{ flex:1,fontSize:"13px",color:"rgba(255,255,255,0.85)",fontWeight:600 }}>{ps.name}</span>
           <span style={{ fontSize:"11px",color:"rgba(255,255,255,0.35)",flexShrink:0 }}>{ps.year}</span>
           <span style={{ fontSize:"13px",fontWeight:800,color:"#f59e0b",minWidth:"52px",textAlign:"right",flexShrink:0 }}>

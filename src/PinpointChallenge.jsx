@@ -180,10 +180,7 @@ function CategoryChip({ category }) {
   );
 }
 
-function CorrectCard({ guess, statLabel, headshots = {} }) {
-  const [photoErr, setPhotoErr] = useState(false);
-  const photoSrc = getHeadshot(headshots, guess.name);
-  const showPhoto = !!photoSrc && !photoErr;
+function CorrectCard({ guess, statLabel }) {
   return (
     <div style={{
       display: "flex", alignItems: "center", gap: "12px",
@@ -191,30 +188,13 @@ function CorrectCard({ guess, statLabel, headshots = {} }) {
       border: "1px solid rgba(34,197,94,0.22)",
       borderRadius: "10px", padding: "11px 14px",
     }}>
-      <div style={{ position: "relative", flexShrink: 0 }}>
-        {showPhoto ? (
-          <>
-            <div style={{ width: 42, height: 42, borderRadius: "50%", overflow: "hidden", background: "#1f2937" }}>
-              <img src={photoSrc} alt={guess.name} onError={() => setPhotoErr(true)}
-                   style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "center 20%", display: "block" }} />
-            </div>
-            <div style={{ position: "absolute", bottom: -2, right: -2, width: 18, height: 18, borderRadius: "50%",
-                          background: "#22c55e", border: "1.5px solid #111318",
-                          display: "flex", alignItems: "center", justifyContent: "center",
-                          fontSize: "8px", fontWeight: 900, color: "#fff" }}>
-              {guess.rank}
-            </div>
-          </>
-        ) : (
-          <div style={{
-            width: "42px", height: "42px", borderRadius: "50%", flexShrink: 0,
-            background: "rgba(34,197,94,0.14)", border: "2px solid rgba(34,197,94,0.38)",
-            display: "flex", alignItems: "center", justifyContent: "center",
-            fontSize: "13px", fontWeight: 900, color: "#22c55e",
-          }}>
-            #{guess.rank}
-          </div>
-        )}
+      <div style={{
+        width: "42px", height: "42px", borderRadius: "50%", flexShrink: 0,
+        background: "rgba(34,197,94,0.14)", border: "2px solid rgba(34,197,94,0.38)",
+        display: "flex", alignItems: "center", justifyContent: "center",
+        fontSize: "13px", fontWeight: 900, color: "#22c55e",
+      }}>
+        #{guess.rank}
       </div>
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{
@@ -239,10 +219,7 @@ function CorrectCard({ guess, statLabel, headshots = {} }) {
   );
 }
 
-function FeaturedGuessCard({ guess, statLabel, headshots = {} }) {
-  const [photoErr, setPhotoErr] = useState(false);
-  const photoSrc = getHeadshot(headshots, guess.name);
-  const showPhoto = !!photoSrc && !photoErr;
+function FeaturedGuessCard({ guess, statLabel }) {
   return (
     <div style={{
       display: "flex", alignItems: "center", gap: "14px",
@@ -251,30 +228,13 @@ function FeaturedGuessCard({ guess, statLabel, headshots = {} }) {
       borderRadius: "12px", padding: "16px 18px",
       boxShadow: "0 0 24px rgba(34,197,94,0.1)",
     }}>
-      <div style={{ position: "relative", flexShrink: 0 }}>
-        {showPhoto ? (
-          <>
-            <div style={{ width: 56, height: 56, borderRadius: "50%", overflow: "hidden", background: "#1f2937", border: "2px solid rgba(34,197,94,0.5)", boxSizing: "border-box" }}>
-              <img src={photoSrc} alt={guess.name} onError={() => setPhotoErr(true)}
-                   style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "center 20%", display: "block" }} />
-            </div>
-            <div style={{ position: "absolute", bottom: -2, right: -2, width: 22, height: 22, borderRadius: "50%",
-                          background: "#22c55e", border: "2px solid #111318",
-                          display: "flex", alignItems: "center", justifyContent: "center",
-                          fontSize: "9px", fontWeight: 900, color: "#fff" }}>
-              {guess.rank}
-            </div>
-          </>
-        ) : (
-          <div style={{
-            width: "56px", height: "56px", borderRadius: "50%", flexShrink: 0,
-            background: "rgba(34,197,94,0.18)", border: "2px solid rgba(34,197,94,0.5)",
-            display: "flex", alignItems: "center", justifyContent: "center",
-            fontSize: "14px", fontWeight: 900, color: "#22c55e",
-          }}>
-            #{guess.rank}
-          </div>
-        )}
+      <div style={{
+        width: "56px", height: "56px", borderRadius: "50%", flexShrink: 0,
+        background: "rgba(34,197,94,0.18)", border: "2px solid rgba(34,197,94,0.5)",
+        display: "flex", alignItems: "center", justifyContent: "center",
+        fontSize: "14px", fontWeight: 900, color: "#22c55e",
+      }}>
+        #{guess.rank}
       </div>
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ fontSize: "10px", color: "rgba(255,255,255,0.28)", letterSpacing: "0.1em", marginBottom: "3px" }}>
