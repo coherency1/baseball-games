@@ -129,6 +129,7 @@ type BatRow = {
   playerID: string; yearID: number; teams: string[];
   HR: number; RBI: number; H: number; R: number; SB: number; BB: number;
   XBH: number; PA: number;
+  AB: number; HBP: number; SF: number; doubles: number; triples: number;
 };
 
 const batAgg = new Map<string, BatRow>();
@@ -162,6 +163,11 @@ for (const row of batting) {
     agg.BB  += bb;
     agg.XBH += dbl + trp + hr;
     agg.PA  += pa;
+    agg.AB  += ab;
+    agg.HBP += hbp;
+    agg.SF  += sf;
+    agg.doubles += dbl;
+    agg.triples += trp;
   } else {
     batAgg.set(key, {
       playerID: pid,
@@ -169,6 +175,7 @@ for (const row of batting) {
       teams: [gameTeam],
       HR: hr, RBI: num(row.RBI), H: num(row.H), R: num(row.R),
       SB: num(row.SB), BB: bb, XBH: dbl + trp + hr, PA: pa,
+      AB: ab, HBP: hbp, SF: sf, doubles: dbl, triples: trp,
     });
   }
 }
@@ -213,6 +220,7 @@ interface PlayerSeasonOut {
   role: 'batter' | 'pitcher';
   HR: number; RBI: number; H: number; SB: number; BB: number; R: number; XBH: number;
   W: number; SV: number; K: number;
+  AVG: number; OBP: number; OPS: number;  // rate stats ×1000 (e.g., .356 → 356)
   isAllStar: boolean; careerAllStars: number; isHOF: boolean;
   awards: string[]; wonWorldSeries: boolean;
 }
@@ -227,6 +235,15 @@ for (const [key, agg] of batAgg) {
   const teamID = agg.teams.join('/');
   const primaryTeam = agg.teams[0];
   const asKey = `${agg.playerID}|${agg.yearID}`;
+
+  // Compute rate stats as integers ×1000
+  const batAVG = agg.AB > 0 ? Math.round(agg.H / agg.AB * 1000) : 0;
+  const singles = agg.H - agg.doubles - agg.triples - agg.HR;
+  const obpDenom = agg.AB + agg.BB + agg.HBP + agg.SF;
+  const batOBP = obpDenom > 0 ? Math.round((agg.H + agg.BB + agg.HBP) / obpDenom * 1000) : 0;
+  const batSLG = agg.AB > 0 ? Math.round((singles + 2 * agg.doubles + 3 * agg.triples + 4 * agg.HR) / agg.AB * 1000) : 0;
+  const batOPS = batOBP + batSLG;
+
   output.push({
     id: key,
     playerID: agg.playerID,
@@ -237,6 +254,7 @@ for (const [key, agg] of batAgg) {
     HR: agg.HR, RBI: agg.RBI, H: agg.H, SB: agg.SB,
     BB: agg.BB, R: agg.R, XBH: agg.XBH,
     W: 0, SV: 0, K: 0,
+    AVG: batAVG, OBP: batOBP, OPS: batOPS,
     isAllStar: allStarYears.has(asKey),
     careerAllStars: allStarCareer.get(agg.playerID) ?? 0,
     isHOF: hofSet.has(agg.playerID),
@@ -274,6 +292,7 @@ for (const [key, agg] of pitAgg) {
     role: 'pitcher',
     HR: 0, RBI: 0, H: 0, SB: 0, BB: 0, R: 0, XBH: 0,
     W: agg.W, SV: agg.SV, K: agg.K,
+    AVG: 0, OBP: 0, OPS: 0,
     isAllStar: allStarYears.has(asKey),
     careerAllStars: allStarCareer.get(agg.playerID) ?? 0,
     isHOF: hofSet.has(agg.playerID),

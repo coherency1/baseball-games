@@ -21,6 +21,10 @@ export interface PlayerSeason {
   BB: number;
   R: number;
   XBH: number;           // 2B + 3B + HR
+  // Rate stats ×1000 (e.g., .356 AVG → 356; batters only, pitchers get 0)
+  AVG: number;
+  OBP: number;
+  OPS: number;
   // Pitching counting stats (role=pitcher only; 0 otherwise)
   W: number;
   SV: number;
@@ -33,7 +37,7 @@ export interface PlayerSeason {
   wonWorldSeries: boolean;      // player's team won World Series that year
 }
 
-export type StatKey = 'HR' | 'RBI' | 'H' | 'SB' | 'BB' | 'R' | 'XBH' | 'W' | 'SV' | 'K';
+export type StatKey = 'HR' | 'RBI' | 'H' | 'SB' | 'BB' | 'R' | 'XBH' | 'W' | 'SV' | 'K' | 'AVG' | 'OBP' | 'OPS';
 
 export interface Restriction {
   type: 'allstar' | 'hof' | 'award' | 'ws_winner';
@@ -47,6 +51,7 @@ export interface ChallengeConfig {
   seasonEnd?: number;        // range end
   statKey: StatKey;
   statLabel: string;
+  threshold?: number;        // minimum stat value to qualify (e.g., 40 for 40+ HR)
 }
 
 export interface GhostStep {

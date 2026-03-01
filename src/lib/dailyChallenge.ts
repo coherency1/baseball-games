@@ -68,6 +68,15 @@ export const CHALLENGE_CONFIGS: ChallengeConfig[] = [
   // Saves
   { season: 2008, statKey: 'SV',  statLabel: 'Saves' },
   { season: 1990, statKey: 'SV',  statLabel: 'Saves' },
+  // Threshold categories — broad year range, pool filtered to threshold
+  { seasonStart: 1950, seasonEnd: 2025, statKey: 'AVG', statLabel: 'Batting Average (\u00d71000)', threshold: 300 },
+  { seasonStart: 1950, seasonEnd: 2025, statKey: 'OPS', statLabel: 'OPS (\u00d71000)', threshold: 1000 },
+  { seasonStart: 1950, seasonEnd: 2025, statKey: 'OBP', statLabel: 'On-Base % (\u00d71000)', threshold: 400 },
+  { seasonStart: 1950, seasonEnd: 2025, statKey: 'HR', statLabel: '40+ HR Seasons', threshold: 40 },
+  { seasonStart: 1950, seasonEnd: 2025, statKey: 'RBI', statLabel: '100+ RBI Seasons', threshold: 100 },
+  { seasonStart: 1950, seasonEnd: 2025, statKey: 'H', statLabel: '200+ Hit Seasons', threshold: 200 },
+  { seasonStart: 1950, seasonEnd: 2025, statKey: 'SB', statLabel: '50+ SB Seasons', threshold: 50 },
+  { seasonStart: 1950, seasonEnd: 2025, statKey: 'SV', statLabel: '40+ Save Seasons', threshold: 40 },
 ];
 
 // Restriction rotation: every 5th challenge gets a restriction (if solvable)
@@ -265,11 +274,12 @@ export function getDailyChallenge(allPlayers: PlayerSeason[]): DailyChallenge {
 
   // Filter players for this season/stat (single year or range)
   const isRange = config.seasonStart !== undefined;
+  const minStatValue = config.threshold ?? 1; // threshold or just > 0
   const pool = isRange
     ? allPlayers.filter(p =>
         p.yearID >= config.seasonStart! &&
         p.yearID <= (config.seasonEnd ?? config.seasonStart!) &&
-        getStatValue(p, config.statKey) > 0
+        getStatValue(p, config.statKey) >= minStatValue
       )
     : filterByStat(allPlayers, config.statKey, config.season!);
 
@@ -299,9 +309,20 @@ export function getDailyChallenge(allPlayers: PlayerSeason[]): DailyChallenge {
   const seasonDisplay = isRange
     ? `${config.seasonStart}–${config.seasonEnd}`
     : String(config.season);
-  const desc = restriction
-    ? `${seasonDisplay} MLB · ${config.statLabel} (${restriction.label})`
-    : `${seasonDisplay} MLB · ${config.statLabel}`;
+
+  let desc: string;
+  if (config.threshold && isRange) {
+    // Threshold categories get a special description format
+    const thresholdLabel = config.statKey === 'AVG' ? `.${config.threshold}+`
+      : config.statKey === 'OBP' ? `.${config.threshold}+`
+      : config.statKey === 'OPS' ? `${(config.threshold / 1000).toFixed(3)}+`
+      : `${config.threshold}+`;
+    desc = `${seasonDisplay} MLB · ${thresholdLabel} ${config.statLabel}`;
+  } else if (restriction) {
+    desc = `${seasonDisplay} MLB · ${config.statLabel} (${restriction.label})`;
+  } else {
+    desc = `${seasonDisplay} MLB · ${config.statLabel}`;
+  }
 
   const displaySeason = config.season ?? config.seasonEnd ?? config.seasonStart ?? 2025;
 
@@ -328,14 +349,31 @@ export function getChallengeForDate(allPlayers: PlayerSeason[], dateStr: string)
   const configIndex = Math.floor(rng() * CHALLENGE_CONFIGS.length);
   const config = CHALLENGE_CONFIGS[configIndex];
   const season = config.season ?? config.seasonEnd ?? config.seasonStart ?? 2025;
-  const pool = config.seasonStart !== undefined
-    ? allPlayers.filter(p => p.yearID >= config.seasonStart! && p.yearID <= (config.seasonEnd ?? config.seasonStart!) && getStatValue(p, config.statKey) > 0)
+  const isRange = config.seasonStart !== undefined;
+  const minStatValue = config.threshold ?? 1;
+  const pool = isRange
+    ? allPlayers.filter(p => p.yearID >= config.seasonStart! && p.yearID <= (config.seasonEnd ?? config.seasonStart!) && getStatValue(p, config.statKey) >= minStatValue)
     : filterByStat(allPlayers, config.statKey, season);
 
   const targetRng = seedrandom(dateStr + '-target');
   const density = getStatDensity(config.statKey);
   const dartLimit = getDartLimit('normal', density);
   const { target, ghostPath } = generateTarget(pool, config.statKey, targetRng, dartLimit);
+
+  const seasonDisplay = isRange
+    ? `${config.seasonStart}–${config.seasonEnd}`
+    : String(season);
+
+  let desc: string;
+  if (config.threshold && isRange) {
+    const thresholdLabel = config.statKey === 'AVG' ? `.${config.threshold}+`
+      : config.statKey === 'OBP' ? `.${config.threshold}+`
+      : config.statKey === 'OPS' ? `${(config.threshold / 1000).toFixed(3)}+`
+      : `${config.threshold}+`;
+    desc = `${seasonDisplay} MLB · ${thresholdLabel} ${config.statLabel}`;
+  } else {
+    desc = `${seasonDisplay} MLB · ${config.statLabel}`;
+  }
 
   return {
     challengeNumber,
@@ -347,9 +385,7 @@ export function getChallengeForDate(allPlayers: PlayerSeason[], dateStr: string)
     statKey: config.statKey,
     statLabel: config.statLabel,
     targetScore: target,
-    description: config.seasonStart !== undefined
-      ? `${config.seasonStart}–${config.seasonEnd} MLB · ${config.statLabel}`
-      : `${season} MLB · ${config.statLabel}`,
+    description: desc,
     ghostPath,
   };
 }

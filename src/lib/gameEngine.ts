@@ -9,7 +9,7 @@ import type { GameState, Dart, DartQuality, PlayerSeason, DailyChallenge, GameMo
 const STAT_DENSITY: Record<StatKey, StatDensity> = {
   HR: 'sparse', SV: 'sparse',
   RBI: 'standard', SB: 'standard', BB: 'standard', K: 'standard', R: 'standard', XBH: 'standard',
-  H: 'dense', W: 'dense',
+  H: 'dense', W: 'dense', AVG: 'dense', OBP: 'dense', OPS: 'dense',
 };
 
 export function getStatDensity(statKey: StatKey): StatDensity {
