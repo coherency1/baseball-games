@@ -71,11 +71,18 @@ function getDartQuality(statValue: number, previousScore: number): DartQuality {
 export function throwDart(state: GameState, season: PlayerSeason): GameState {
   if (state.status !== 'playing') return state;
 
-  // Prevent duplicate season guesses
-  const alreadyUsed = state.darts.some(
-    d => d.playerSeason.playerID === season.playerID && d.playerSeason.yearID === season.yearID
-  );
-  if (alreadyUsed) return state;
+  // Duplicate prevention:
+  // Easy: block exact same season only (same player, different years OK)
+  // Normal/Hard: block entire player (one player per game)
+  if (state.mode === 'easy') {
+    const exactDup = state.darts.some(
+      d => d.playerSeason.playerID === season.playerID && d.playerSeason.yearID === season.yearID
+    );
+    if (exactDup) return state;
+  } else {
+    const playerUsed = state.darts.some(d => d.playerSeason.playerID === season.playerID);
+    if (playerUsed) return state;
+  }
 
   // Validate against restriction
   if (state.challenge.restriction) {
@@ -168,4 +175,8 @@ export function getFinalScore(state: GameState): number {
 
 export function getUsedSeasonIds(state: GameState): Set<string> {
   return new Set(state.darts.map(d => d.playerSeason.id));
+}
+
+export function getUsedPlayerIds(state: GameState): Set<string> {
+  return new Set(state.darts.map(d => d.playerSeason.playerID));
 }

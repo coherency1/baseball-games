@@ -11,6 +11,7 @@ interface PlayerSearchProps {
   challengeSeasonStart: number;
   challengeSeasonEnd?: number;   // undefined = single-year challenge
   usedIds: Set<string>;
+  usedPlayerIds?: Set<string>;   // Normal/Hard: blocks entire player after one season used
   disabled: boolean;
   onSelect: (season: PlayerSeason) => void;
 }
@@ -22,6 +23,7 @@ export function PlayerSearch({
   challengeSeasonStart,
   challengeSeasonEnd,
   usedIds,
+  usedPlayerIds,
   disabled,
   onSelect,
 }: PlayerSearchProps) {
@@ -34,11 +36,11 @@ export function PlayerSearch({
   // Filter seasons for selected player to challenge year/range
   const playerSeasons = useMemo(() => {
     if (!selectedPlayer) return [];
-    const all = getPlayerSeasons(allSeasons, selectedPlayer.playerID, challengeStatKey as never, usedIds);
+    const all = getPlayerSeasons(allSeasons, selectedPlayer.playerID, challengeStatKey as never, usedIds, usedPlayerIds);
     return challengeSeasonEnd !== undefined
       ? all.filter(item => item.season.yearID >= challengeSeasonStart && item.season.yearID <= challengeSeasonEnd)
       : all.filter(item => item.season.yearID === challengeSeasonStart);
-  }, [selectedPlayer, allSeasons, challengeStatKey, challengeSeasonStart, challengeSeasonEnd, usedIds]);
+  }, [selectedPlayer, allSeasons, challengeStatKey, challengeSeasonStart, challengeSeasonEnd, usedIds, usedPlayerIds]);
 
   // Search as user types
   useEffect(() => {
@@ -53,7 +55,7 @@ export function PlayerSearch({
   }, [query, fuse]);
 
   function handleSelectPlayer(player: PlayerEntry) {
-    const all = getPlayerSeasons(allSeasons, player.playerID, challengeStatKey as never, usedIds);
+    const all = getPlayerSeasons(allSeasons, player.playerID, challengeStatKey as never, usedIds, usedPlayerIds);
     const seasons = challengeSeasonEnd !== undefined
       ? all.filter(item => item.season.yearID >= challengeSeasonStart && item.season.yearID <= challengeSeasonEnd)
       : all.filter(item => item.season.yearID === challengeSeasonStart);

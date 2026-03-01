@@ -4,7 +4,7 @@ import type { PlayerSeason, GameState, DailyChallenge, GameMode } from '../types
 import type { PlayerEntry } from '../lib/playerSearch';
 import { buildPlayerIndex, buildFuseIndex } from '../lib/playerSearch';
 import { getDailyChallenge, DEV_OVERRIDE } from '../lib/dailyChallenge';
-import { createInitialState, throwDart, standGame, isGameOver, getUsedSeasonIds, getDartsRemaining, getMultiplier, getFinalScore, getDartLimit, getStatDensity } from '../lib/gameEngine';
+import { createInitialState, throwDart, standGame, isGameOver, getUsedSeasonIds, getUsedPlayerIds, getDartsRemaining, getMultiplier, getFinalScore, getDartLimit, getStatDensity } from '../lib/gameEngine';
 import { Header } from './Header';
 import { ScoreDisplay } from './ScoreDisplay';
 import { DartRow } from './DartRow';
@@ -183,6 +183,7 @@ export function GameBoard() {
 
   const gameOver = isGameOver(gameState);
   const usedIds = getUsedSeasonIds(gameState);
+  const usedPlayerIds = gameState.mode !== 'easy' ? getUsedPlayerIds(gameState) : undefined;
   const canChangeMode = gameState.darts.length === 0;
 
   return (
@@ -235,6 +236,7 @@ export function GameBoard() {
               challengeSeasonStart={gameState.challenge.seasonStart ?? gameState.challenge.season}
               challengeSeasonEnd={gameState.challenge.seasonEnd}
               usedIds={usedIds}
+              usedPlayerIds={usedPlayerIds}
               disabled={false}
               onSelect={handleThrowDart}
             />

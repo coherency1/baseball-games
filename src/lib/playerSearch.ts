@@ -63,19 +63,22 @@ export function searchPlayers(
   return results.map(r => r.item);
 }
 
-// Get all seasons for a specific player, filtered by what's valid for the challenge
+// Get all seasons for a specific player, filtered by what's valid for the challenge.
+// usedPlayerIds: if provided (Normal/Hard), marks ALL seasons as used when playerID is in set.
 export function getPlayerSeasons(
   allSeasons: PlayerSeason[],
   playerID: string,
   statKey: StatKey,
-  usedIds: Set<string>
+  usedIds: Set<string>,
+  usedPlayerIds?: Set<string>
 ): Array<{ season: PlayerSeason; statValue: number; used: boolean }> {
+  const playerBlocked = usedPlayerIds?.has(playerID) ?? false;
   return allSeasons
     .filter(s => s.playerID === playerID)
     .map(s => ({
       season: s,
       statValue: (s as unknown as Record<string, number>)[statKey] ?? 0,
-      used: usedIds.has(s.id),
+      used: playerBlocked || usedIds.has(s.id),
     }))
     .filter(item => item.statValue > 0)
     .sort((a, b) => a.season.yearID - b.season.yearID);
