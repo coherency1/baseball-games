@@ -240,6 +240,17 @@ export function GameBoard() {
               disabled={false}
               onSelect={handleThrowDart}
             />
+            {/* Stand button — visible after first dart */}
+            {gameState.darts.length > 0 && (
+              <div className="px-4">
+                <button
+                  onClick={handleStand}
+                  className="w-full py-3 rounded-xl bg-amber-900/30 border border-amber-700 hover:bg-amber-900/50 text-amber-300 font-bold text-sm transition-colors flex items-center justify-center gap-2"
+                >
+                  🏳️ Stand — Lock in Score
+                </button>
+              </div>
+            )}
             {/* How-to hint */}
             <p className="text-center text-xs text-slate-500 px-4">
               Search a player from{' '}
@@ -249,14 +260,6 @@ export function GameBoard() {
                   : gameState.challenge.season}
               </strong>{' '}
               to subtract their {gameState.challenge.statLabel}.
-              {gameState.darts.length > 0 && (
-                <button
-                  onClick={handleStand}
-                  className="ml-2 text-amber-400 hover:text-amber-300 underline font-semibold"
-                >
-                  Stand here →
-                </button>
-              )}
             </p>
             {/* Restriction reminder */}
             {gameState.challenge.restriction && (
