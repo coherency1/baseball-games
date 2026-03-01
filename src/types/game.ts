@@ -49,6 +49,13 @@ export interface ChallengeConfig {
   statLabel: string;
 }
 
+export interface GhostStep {
+  name: string;
+  yearID: number;
+  teamID: string;
+  statValue: number;
+}
+
 export interface DailyChallenge {
   challengeNumber: number;   // days since epoch start date
   date: string;              // "2026-02-27"
@@ -58,9 +65,10 @@ export interface DailyChallenge {
   seasonEnd?: number;        // set for multi-year range challenges
   statKey: StatKey;
   statLabel: string;
-  targetScore: number;       // sum of top 5 qualifying player-seasons
+  targetScore: number;       // validated target (not trivially solvable)
   restriction?: Restriction;
   description: string;       // "1998 MLB · Home Runs" or "2010–2025 MLB · Strikeouts"
+  ghostPath?: GhostStep[];   // pre-computed valid solution path for post-game display
 }
 
 export type DartQuality = 'bullseye' | 'great' | 'good' | 'small';

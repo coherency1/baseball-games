@@ -1,13 +1,13 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // Deadeye — Daily Challenge Generator
 // Date-seeded: all players get the same puzzle each day.
-// Target = sum of top 5 player-seasons for the chosen year/stat.
+// Target generated via validated non-trivial algorithm with ghost path.
 // ─────────────────────────────────────────────────────────────────────────────
 
 // @ts-ignore - seedrandom has no bundled types but @types/seedrandom is installed
 import seedrandom from 'seedrandom';
-import type { PlayerSeason, DailyChallenge, ChallengeConfig, Restriction, StatKey } from '../types/game';
-import { getStatValue } from './gameEngine';
+import type { PlayerSeason, DailyChallenge, ChallengeConfig, Restriction, StatKey, GhostStep } from '../types/game';
+import { getStatValue, getDartLimit, getStatDensity } from './gameEngine';
 
 // Epoch: day 1 of Deadeye challenges
 const EPOCH_DATE = '2026-03-01';
@@ -16,7 +16,7 @@ const EPOCH_DATE = '2026-03-01';
 export const DEV_OVERRIDE: ChallengeConfig | null = { seasonStart: 2010, seasonEnd: 2025, statKey: 'K', statLabel: 'Strikeouts (Pitching)' };
 
 // Curated list of interesting year/stat combinations spanning different eras.
-// Each entry represents a potential daily challenge configuration.
+// W (Wins) removed from rotation per planning doc.
 export const CHALLENGE_CONFIGS: ChallengeConfig[] = [
   // Recent seasons
   { season: 2025, statKey: 'HR',  statLabel: 'Home Runs' },
@@ -65,9 +65,6 @@ export const CHALLENGE_CONFIGS: ChallengeConfig[] = [
   { season: 1965, statKey: 'K',   statLabel: 'Strikeouts (Pitching)' },
   { season: 1973, statKey: 'K',   statLabel: 'Strikeouts (Pitching)' },
   { season: 2014, statKey: 'K',   statLabel: 'Strikeouts (Pitching)' },
-  // Pitching — Wins
-  { season: 1968, statKey: 'W',   statLabel: 'Wins (Pitching)' },
-  { season: 1920, statKey: 'W',   statLabel: 'Wins (Pitching)' },
   // Saves
   { season: 2008, statKey: 'SV',  statLabel: 'Saves' },
   { season: 1990, statKey: 'SV',  statLabel: 'Saves' },
@@ -107,10 +104,153 @@ function filterByRestriction(players: PlayerSeason[], restriction: Restriction):
   }
 }
 
-function computeTarget(players: PlayerSeason[], statKey: StatKey): number {
-  const sorted = [...players].sort((a, b) => getStatValue(b, statKey) - getStatValue(a, statKey));
-  const top5 = sorted.slice(0, 5);
-  return top5.reduce((sum, p) => sum + getStatValue(p, statKey), 0);
+// ── Deduplicate pool by playerID, keeping best stat value per player ──────────
+interface DeduplicatedPlayer {
+  playerID: string;
+  season: PlayerSeason;
+  statValue: number;
+}
+
+function deduplicatePool(pool: PlayerSeason[], statKey: StatKey): DeduplicatedPlayer[] {
+  const map = new Map<string, DeduplicatedPlayer>();
+  for (const s of pool) {
+    const val = getStatValue(s, statKey);
+    const existing = map.get(s.playerID);
+    if (!existing || val > existing.statValue) {
+      map.set(s.playerID, { playerID: s.playerID, season: s, statValue: val });
+    }
+  }
+  return Array.from(map.values()).sort((a, b) => b.statValue - a.statValue);
+}
+
+// ── Target generation: validated non-trivial target ───────────────────────────
+
+/**
+ * Check if a target can be reached using distinct players from the pool
+ * within a given dart limit. Returns the number of distinct paths found
+ * (stops counting after finding `needed` paths).
+ */
+function countPaths(
+  target: number,
+  candidates: DeduplicatedPlayer[],
+  dartLimit: number,
+  needed: number,
+): number {
+  let pathsFound = 0;
+
+  // DFS with pruning: try to find `needed` distinct combinations summing to target
+  function dfs(remaining: number, startIdx: number, depth: number) {
+    if (pathsFound >= needed) return;
+    if (remaining === 0) { pathsFound++; return; }
+    if (depth >= dartLimit) return;
+    if (remaining < 0) return;
+
+    for (let i = startIdx; i < candidates.length && pathsFound < needed; i++) {
+      const val = candidates[i].statValue;
+      if (val > remaining) continue; // skip if too big
+      // Pruning: if the largest remaining candidate is too small to
+      // reach the remaining target within the dart limit, skip
+      if (val * (dartLimit - depth) < remaining) break; // sorted desc, so all following are smaller
+      dfs(remaining - val, i + 1, depth + 1);
+    }
+  }
+
+  dfs(target, 0, 0);
+  return pathsFound;
+}
+
+/**
+ * Generate a validated target by combining 3-4 candidates from the top 20.
+ * The target must:
+ * 1. Not be achievable with a single dart
+ * 2. Have at least 2 distinct multi-dart solution paths
+ */
+function generateTarget(
+  pool: PlayerSeason[],
+  statKey: StatKey,
+  rng: () => number,
+  dartLimit: number,
+): { target: number; ghostPath: GhostStep[] } {
+  const deduped = deduplicatePool(pool, statKey);
+  const topCandidates = deduped.slice(0, Math.min(20, deduped.length));
+  const allStatValues = new Set(deduped.map(d => d.statValue));
+
+  // Try up to 50 random combinations of 3-4 candidates
+  for (let attempt = 0; attempt < 50; attempt++) {
+    // Pick 3 or 4 candidates randomly from top 20
+    const pickCount = rng() < 0.5 ? 3 : 4;
+    const indices = new Set<number>();
+    while (indices.size < pickCount && indices.size < topCandidates.length) {
+      indices.add(Math.floor(rng() * topCandidates.length));
+    }
+    if (indices.size < pickCount) continue;
+
+    const picked = Array.from(indices).map(i => topCandidates[i]);
+    const target = picked.reduce((sum, p) => sum + p.statValue, 0);
+
+    // Rule 1: no single dart should equal the target
+    if (allStatValues.has(target)) continue;
+
+    // Rule 2: at least 2 distinct paths must exist within dart limit
+    const paths = countPaths(target, deduped, dartLimit, 2);
+    if (paths < 2) continue;
+
+    // Valid target found! Compute ghost path (greedy best-fit)
+    const ghost = computeGhostPath(target, deduped, dartLimit);
+    return { target, ghostPath: ghost };
+  }
+
+  // Fallback: modified top-5 sum scaled by 0.7-0.9
+  const top5sum = topCandidates.slice(0, 5).reduce((sum, p) => sum + p.statValue, 0);
+  const scale = 0.7 + rng() * 0.2; // 0.7 to 0.9
+  let fallbackTarget = Math.round(top5sum * scale);
+
+  // Ensure fallback target is not achievable by a single dart
+  while (allStatValues.has(fallbackTarget)) {
+    fallbackTarget++;
+  }
+
+  const ghost = computeGhostPath(fallbackTarget, deduped, dartLimit);
+  return { target: fallbackTarget, ghostPath: ghost };
+}
+
+/**
+ * Greedy best-fit ghost path: pick the largest unused player that doesn't
+ * overshoot the remaining target, until remainder is 0 or we run out of
+ * candidates/darts.
+ */
+function computeGhostPath(
+  target: number,
+  candidates: DeduplicatedPlayer[],
+  dartLimit: number,
+): GhostStep[] {
+  const path: GhostStep[] = [];
+  let remaining = target;
+  const usedPlayers = new Set<string>();
+
+  for (let dart = 0; dart < dartLimit && remaining > 0; dart++) {
+    // Find the best-fit: largest stat that doesn't overshoot
+    let bestFit: DeduplicatedPlayer | null = null;
+    for (const c of candidates) {
+      if (usedPlayers.has(c.playerID)) continue;
+      if (c.statValue <= remaining) {
+        bestFit = c;
+        break; // candidates sorted desc, so first fit is best
+      }
+    }
+    if (!bestFit) break;
+
+    path.push({
+      name: bestFit.season.name,
+      yearID: bestFit.season.yearID,
+      teamID: bestFit.season.teamID,
+      statValue: bestFit.statValue,
+    });
+    remaining -= bestFit.statValue;
+    usedPlayers.add(bestFit.playerID);
+  }
+
+  return path;
 }
 
 export function getDailyChallenge(allPlayers: PlayerSeason[]): DailyChallenge {
@@ -149,7 +289,12 @@ export function getDailyChallenge(allPlayers: PlayerSeason[]): DailyChallenge {
   }
 
   const finalPool = restriction ? filterByRestriction(pool, restriction) : pool;
-  const targetScore = computeTarget(finalPool, config.statKey);
+
+  // Use deterministic RNG seeded with the date for target generation
+  const rng = seedrandom(today + '-target');
+  const density = getStatDensity(config.statKey);
+  const dartLimit = getDartLimit('normal', density); // Use Normal dart limit for validation
+  const { target, ghostPath } = generateTarget(finalPool, config.statKey, rng, dartLimit);
 
   const seasonDisplay = isRange
     ? `${config.seasonStart}–${config.seasonEnd}`
@@ -169,9 +314,10 @@ export function getDailyChallenge(allPlayers: PlayerSeason[]): DailyChallenge {
     seasonEnd: config.seasonEnd,
     statKey: config.statKey,
     statLabel: config.statLabel,
-    targetScore,
+    targetScore: target,
     restriction,
     description: desc,
+    ghostPath,
   };
 }
 
@@ -185,7 +331,11 @@ export function getChallengeForDate(allPlayers: PlayerSeason[], dateStr: string)
   const pool = config.seasonStart !== undefined
     ? allPlayers.filter(p => p.yearID >= config.seasonStart! && p.yearID <= (config.seasonEnd ?? config.seasonStart!) && getStatValue(p, config.statKey) > 0)
     : filterByStat(allPlayers, config.statKey, season);
-  const targetScore = computeTarget(pool, config.statKey);
+
+  const targetRng = seedrandom(dateStr + '-target');
+  const density = getStatDensity(config.statKey);
+  const dartLimit = getDartLimit('normal', density);
+  const { target, ghostPath } = generateTarget(pool, config.statKey, targetRng, dartLimit);
 
   return {
     challengeNumber,
@@ -196,9 +346,10 @@ export function getChallengeForDate(allPlayers: PlayerSeason[], dateStr: string)
     seasonEnd: config.seasonEnd,
     statKey: config.statKey,
     statLabel: config.statLabel,
-    targetScore,
+    targetScore: target,
     description: config.seasonStart !== undefined
       ? `${config.seasonStart}–${config.seasonEnd} MLB · ${config.statLabel}`
       : `${season} MLB · ${config.statLabel}`,
+    ghostPath,
   };
 }
