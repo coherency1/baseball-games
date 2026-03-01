@@ -28,13 +28,30 @@ export function getDartLimit(mode: GameMode, density: StatDensity): number {
   return DART_LIMITS[density][mode];
 }
 
+// ── Darts-remaining scoring multiplier (lower score = better) ────────────────
+// Index = darts remaining when game ends. 4+ remaining all use 3.0x.
+const MULTIPLIER_TABLE = [1.0, 1.3, 1.7, 2.2, 3.0] as const;
+
+export function getMultiplier(dartsRemaining: number): number {
+  const idx = Math.min(dartsRemaining, MULTIPLIER_TABLE.length - 1);
+  return MULTIPLIER_TABLE[idx];
+}
+
+export function getDartsRemaining(state: GameState): number {
+  if (state.dartLimit === Infinity) return 0; // Easy mode has no concept of remaining
+  return Math.max(0, state.dartLimit - state.darts.length);
+}
+
 export function createInitialState(challenge: DailyChallenge, mode: GameMode): GameState {
+  const density = getStatDensity(challenge.statKey);
+  const dartLimit = getDartLimit(mode, density);
   return {
     challenge,
     darts: [],
     remainingScore: challenge.targetScore,
     status: 'playing',
     mode,
+    dartLimit,
   };
 }
 
@@ -95,13 +112,33 @@ export function throwDart(state: GameState, season: PlayerSeason): GameState {
   }
 
   const newScore = Math.abs(rawNewScore); // easy mode: treat as distance from 0
-  const newStatus = rawNewScore === 0 ? 'perfect' : 'playing';
+  const newDarts = [...state.darts, dart];
+
+  // Check for bullseye
+  if (rawNewScore === 0) {
+    return {
+      ...state,
+      darts: newDarts,
+      remainingScore: 0,
+      status: 'perfect',
+    };
+  }
+
+  // Check if all darts exhausted (Normal/Hard only)
+  if (state.dartLimit !== Infinity && newDarts.length >= state.dartLimit) {
+    return {
+      ...state,
+      darts: newDarts,
+      remainingScore: newScore,
+      status: 'out_of_darts',
+    };
+  }
 
   return {
     ...state,
-    darts: [...state.darts, dart],
+    darts: newDarts,
     remainingScore: newScore,
-    status: newStatus,
+    status: 'playing',
   };
 }
 
@@ -115,7 +152,18 @@ export function isGameOver(state: GameState): boolean {
 }
 
 export function getFinalScore(state: GameState): number {
-  return state.remainingScore;
+  // Bullseye always = 0
+  if (state.status === 'perfect') return 0;
+
+  const distance = state.remainingScore;
+
+  // Easy: raw distance, no multiplier
+  if (state.mode === 'easy') return distance;
+
+  // Normal/Hard: distance × darts-remaining multiplier
+  const remaining = getDartsRemaining(state);
+  const multiplier = getMultiplier(remaining);
+  return Math.round(distance * multiplier);
 }
 
 export function getUsedSeasonIds(state: GameState): Set<string> {

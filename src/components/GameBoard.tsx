@@ -4,7 +4,7 @@ import type { PlayerSeason, GameState, DailyChallenge, GameMode } from '../types
 import type { PlayerEntry } from '../lib/playerSearch';
 import { buildPlayerIndex, buildFuseIndex } from '../lib/playerSearch';
 import { getDailyChallenge, DEV_OVERRIDE } from '../lib/dailyChallenge';
-import { createInitialState, throwDart, standGame, isGameOver, getUsedSeasonIds } from '../lib/gameEngine';
+import { createInitialState, throwDart, standGame, isGameOver, getUsedSeasonIds, getDartsRemaining, getMultiplier, getFinalScore, getDartLimit, getStatDensity } from '../lib/gameEngine';
 import { Header } from './Header';
 import { ScoreDisplay } from './ScoreDisplay';
 import { DartRow } from './DartRow';
@@ -142,7 +142,9 @@ export function GameBoard() {
     setMode(newMode);
     saveMode(newMode);
     if (gameState) {
-      const updated = { ...gameState, mode: newMode };
+      const density = getStatDensity(gameState.challenge.statKey);
+      const dartLimit = getDartLimit(newMode, density);
+      const updated = { ...gameState, mode: newMode, dartLimit };
       setGameState(updated);
     }
   }
@@ -200,6 +202,9 @@ export function GameBoard() {
           remainingScore={gameState.remainingScore}
           status={gameState.status}
           dartsThrown={gameState.darts.length}
+          dartLimit={gameState.dartLimit}
+          mode={gameState.mode}
+          multiplierPreview={gameState.mode !== 'easy' ? getMultiplier(getDartsRemaining(gameState)) : undefined}
         />
       </div>
 

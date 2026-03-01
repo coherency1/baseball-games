@@ -73,7 +73,7 @@ export interface Dart {
   quality: DartQuality;
 }
 
-export type GameStatus = 'playing' | 'bust' | 'perfect' | 'standing';
+export type GameStatus = 'playing' | 'bust' | 'perfect' | 'standing' | 'out_of_darts';
 
 export interface GameState {
   challenge: DailyChallenge;
@@ -81,4 +81,5 @@ export interface GameState {
   remainingScore: number;    // Math.abs in easy mode when negative
   status: GameStatus;
   mode: GameMode;
+  dartLimit: number;         // Infinity for Easy, 5-10 for Normal/Hard
 }

@@ -1,23 +1,28 @@
-import type { GameStatus } from '../types/game';
+import type { GameStatus, GameMode } from '../types/game';
 
 interface ScoreDisplayProps {
   targetScore: number;
   remainingScore: number;
   status: GameStatus;
   dartsThrown: number;
+  dartLimit: number;
+  mode: GameMode;
+  multiplierPreview?: number; // live multiplier for Normal/Hard
 }
 
 const STATUS_CONFIG: Record<GameStatus, { label: string; color: string; bg: string }> = {
-  playing:  { label: 'Remaining',  color: 'text-white',       bg: 'bg-slate-800' },
-  perfect:  { label: '🎯 Bullseye!', color: 'text-green-400',  bg: 'bg-green-900/30' },
-  bust:     { label: '💥 Bust!',    color: 'text-red-400',    bg: 'bg-red-900/30' },
-  standing: { label: 'Final Score', color: 'text-amber-400',  bg: 'bg-amber-900/30' },
+  playing:      { label: 'Remaining',      color: 'text-white',       bg: 'bg-slate-800' },
+  perfect:      { label: '🎯 Bullseye!',   color: 'text-green-400',  bg: 'bg-green-900/30' },
+  bust:         { label: '💥 Bust!',        color: 'text-red-400',    bg: 'bg-red-900/30' },
+  standing:     { label: 'Final Score',     color: 'text-amber-400',  bg: 'bg-amber-900/30' },
+  out_of_darts: { label: 'Out of Darts',    color: 'text-orange-400', bg: 'bg-orange-900/30' },
 };
 
-export function ScoreDisplay({ targetScore, remainingScore, status, dartsThrown }: ScoreDisplayProps) {
+export function ScoreDisplay({ targetScore, remainingScore, status, dartsThrown, dartLimit, mode, multiplierPreview }: ScoreDisplayProps) {
   const cfg = STATUS_CONFIG[status];
   const progress = targetScore > 0 ? Math.max(0, (targetScore - remainingScore) / targetScore) : 0;
   const progressPct = Math.min(100, progress * 100);
+  const hasDartLimit = dartLimit !== Infinity;
 
   return (
     <div className={`w-full max-w-2xl mx-auto px-4 py-5 rounded-2xl ${cfg.bg} border border-slate-700`}>
@@ -31,7 +36,15 @@ export function ScoreDisplay({ targetScore, remainingScore, status, dartsThrown 
           Target: <span className="text-slate-300 font-semibold">{targetScore}</span>
           {dartsThrown > 0 && (
             <span className="ml-3">
-              Darts: <span className="text-slate-300 font-semibold">{dartsThrown}</span>
+              Darts: <span className="text-slate-300 font-semibold">
+                {dartsThrown}{hasDartLimit ? `/${dartLimit}` : ''}
+              </span>
+            </span>
+          )}
+          {/* Live multiplier preview for Normal/Hard */}
+          {multiplierPreview !== undefined && mode !== 'easy' && status === 'playing' && dartsThrown > 0 && (
+            <span className="ml-3 text-amber-400">
+              {multiplierPreview}x
             </span>
           )}
         </p>
@@ -43,6 +56,7 @@ export function ScoreDisplay({ targetScore, remainingScore, status, dartsThrown 
           className={`h-full rounded-full transition-all duration-500 ${
             status === 'bust' ? 'bg-red-500' :
             status === 'perfect' ? 'bg-green-500' :
+            status === 'out_of_darts' ? 'bg-orange-500' :
             progressPct > 80 ? 'bg-amber-400' :
             'bg-blue-500'
           }`}

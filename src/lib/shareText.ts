@@ -4,6 +4,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import type { GameState, DartQuality } from '../types/game';
+import { getFinalScore } from './gameEngine';
 
 const QUALITY_EMOJI: Record<DartQuality, string> = {
   bullseye: '🎯',
@@ -29,12 +30,17 @@ export function generateShareText(state: GameState): string {
   const dartCount = darts.length;
   let resultLine = `Target: ${challenge.targetScore}`;
 
+  const finalScore = getFinalScore(state);
+  const dartLabel = `${dartCount} dart${dartCount !== 1 ? 's' : ''}`;
+
   if (status === 'perfect') {
-    resultLine += ` · 🎯 Bullseye! · ${dartCount} dart${dartCount !== 1 ? 's' : ''}`;
+    resultLine += ` · 🎯 Bullseye! · ${dartLabel}`;
   } else if (status === 'bust') {
-    resultLine += ` · 💥 Bust · ${dartCount} dart${dartCount !== 1 ? 's' : ''}`;
+    resultLine += ` · 💥 Bust · ${dartLabel}`;
+  } else if (state.mode !== 'easy' && finalScore !== remainingScore) {
+    resultLine += ` · Score: ${finalScore} (${remainingScore} × multiplier) · ${dartLabel}`;
   } else {
-    resultLine += ` · ${remainingScore} left · ${dartCount} dart${dartCount !== 1 ? 's' : ''}`;
+    resultLine += ` · ${remainingScore} left · ${dartLabel}`;
   }
   lines.push(resultLine);
 

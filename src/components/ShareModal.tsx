@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { GameState } from '../types/game';
 import { generateShareText, copyToClipboard } from '../lib/shareText';
+import { getFinalScore, getDartsRemaining, getMultiplier } from '../lib/gameEngine';
 
 interface ShareModalProps {
   gameState: GameState;
@@ -48,18 +49,34 @@ export function ShareModal({ gameState, onClose }: ShareModalProps) {
             <span className="text-white font-semibold">{challenge.targetScore}</span>
           </div>
           <div className="flex justify-between items-center">
-            <span className="text-slate-400 text-sm">Final Score</span>
-            <span className={`font-black text-xl ${
+            <span className="text-slate-400 text-sm">
+              {gameState.mode !== 'easy' ? 'Distance' : 'Final Score'}
+            </span>
+            <span className={`font-bold ${
               status === 'perfect' ? 'text-green-400' :
               status === 'bust' ? 'text-red-400' :
-              'text-amber-400'
+              'text-white'
             }`}>
               {remainingScore} {status === 'perfect' ? '🎯' : ''}
             </span>
           </div>
+          {gameState.mode !== 'easy' && status !== 'perfect' && (
+            <div className="flex justify-between items-center">
+              <span className="text-slate-400 text-sm">
+                Score ({remainingScore} × {getMultiplier(getDartsRemaining(gameState))}x)
+              </span>
+              <span className={`font-black text-xl ${
+                status === 'bust' ? 'text-red-400' : 'text-amber-400'
+              }`}>
+                {getFinalScore(gameState)}
+              </span>
+            </div>
+          )}
           <div className="flex justify-between items-center">
             <span className="text-slate-400 text-sm">Darts thrown</span>
-            <span className="text-white font-semibold">{darts.length}</span>
+            <span className="text-white font-semibold">
+              {darts.length}{gameState.dartLimit !== Infinity ? `/${gameState.dartLimit}` : ''}
+            </span>
           </div>
           {gameState.mode !== 'easy' && (
             <div className="flex justify-between items-center">
