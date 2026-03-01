@@ -19,6 +19,8 @@ export function ShareModal({ gameState, onClose }: ShareModalProps) {
   }
 
   const { status, remainingScore, challenge, darts } = gameState;
+  const finalScore = getFinalScore(gameState);
+  const modeLabel = gameState.mode === 'hard' ? 'Hard' : gameState.mode === 'normal' ? 'Normal' : 'Easy';
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70">
@@ -28,7 +30,8 @@ export function ShareModal({ gameState, onClose }: ShareModalProps) {
           <h2 className="text-xl font-black text-white">
             {status === 'perfect' ? '🎯 Bullseye!' :
              status === 'bust' ? '💥 Busted!' :
-             '📊 Results'}
+             status === 'out_of_darts' ? '⏱️ Out of Darts' :
+             '🏳️ Stood'}
           </h2>
           <button
             onClick={onClose}
@@ -49,43 +52,52 @@ export function ShareModal({ gameState, onClose }: ShareModalProps) {
             <span className="text-white font-semibold">{challenge.targetScore}</span>
           </div>
           <div className="flex justify-between items-center">
-            <span className="text-slate-400 text-sm">
-              {gameState.mode !== 'easy' ? 'Distance' : 'Final Score'}
+            <span className="text-slate-400 text-sm">Darts thrown</span>
+            <span className="text-white font-semibold">
+              {darts.length}{gameState.dartLimit !== Infinity ? ` / ${gameState.dartLimit}` : ''}
             </span>
+          </div>
+          <div className="flex justify-between items-center">
+            <span className="text-slate-400 text-sm">Distance</span>
             <span className={`font-bold ${
               status === 'perfect' ? 'text-green-400' :
               status === 'bust' ? 'text-red-400' :
               'text-white'
             }`}>
-              {remainingScore} {status === 'perfect' ? '🎯' : ''}
+              {status === 'perfect' ? '0 🎯' : remainingScore}
             </span>
           </div>
-          {gameState.mode !== 'easy' && status !== 'perfect' && (
+          {gameState.mode !== 'easy' && status !== 'perfect' && status !== 'bust' && (
             <div className="flex justify-between items-center">
               <span className="text-slate-400 text-sm">
-                Score ({remainingScore} × {getMultiplier(getDartsRemaining(gameState))}x)
+                Multiplier ({getDartsRemaining(gameState)} darts left)
               </span>
-              <span className={`font-black text-xl ${
-                status === 'bust' ? 'text-red-400' : 'text-amber-400'
-              }`}>
-                {getFinalScore(gameState)}
+              <span className="text-amber-400 font-semibold">
+                {getMultiplier(getDartsRemaining(gameState))}x
               </span>
             </div>
           )}
-          <div className="flex justify-between items-center">
-            <span className="text-slate-400 text-sm">Darts thrown</span>
-            <span className="text-white font-semibold">
-              {darts.length}{gameState.dartLimit !== Infinity ? `/${gameState.dartLimit}` : ''}
+          <div className="flex justify-between items-center border-t border-slate-700 pt-3">
+            <span className="text-slate-300 text-sm font-semibold">Final Score</span>
+            <span className={`font-black text-xl ${
+              status === 'perfect' ? 'text-green-400' :
+              status === 'bust' ? 'text-red-400' :
+              finalScore === 0 ? 'text-green-400' :
+              'text-amber-400'
+            }`}>
+              {status === 'bust' ? 'Bust' : finalScore}
             </span>
           </div>
-          {gameState.mode !== 'easy' && (
-            <div className="flex justify-between items-center">
-              <span className="text-slate-400 text-sm">Mode</span>
-              <span className={`font-semibold text-sm ${gameState.mode === 'hard' ? 'text-red-400' : 'text-blue-400'}`}>
-                {gameState.mode === 'hard' ? '🔴 Hard' : '🔵 Normal'}
-              </span>
-            </div>
-          )}
+          <div className="flex justify-between items-center">
+            <span className="text-slate-400 text-sm">Mode</span>
+            <span className={`font-semibold text-sm ${
+              gameState.mode === 'hard' ? 'text-red-400' :
+              gameState.mode === 'normal' ? 'text-blue-400' :
+              'text-green-400'
+            }`}>
+              {modeLabel}
+            </span>
+          </div>
         </div>
 
         {/* Share text preview */}

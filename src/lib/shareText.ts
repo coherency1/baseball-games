@@ -1,10 +1,10 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // Deadeye — Share Text Generator
-// Produces Wordle-style copy-pasteable emoji result strings
+// Produces spoiler-free emoji result string per planning doc spec
 // ─────────────────────────────────────────────────────────────────────────────
 
 import type { GameState, DartQuality } from '../types/game';
-import { getFinalScore } from './gameEngine';
+import { getFinalScore, getDartsRemaining, getMultiplier } from './gameEngine';
 
 const QUALITY_EMOJI: Record<DartQuality, string> = {
   bullseye: '🎯',
@@ -13,57 +13,81 @@ const QUALITY_EMOJI: Record<DartQuality, string> = {
   small:    '🔴',
 };
 
-function getBustEmoji(): string {
-  return '💥';
+/** Format a date like "Mar 1, 2026" */
+function formatDate(dateStr: string): string {
+  const d = new Date(dateStr + 'T12:00:00'); // noon to avoid timezone issues
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
+/**
+ * Generate share text per planning doc format:
+ *
+ *   🎯 Deadeye — Mar 1, 2026
+ *   1998 MLB · Home Runs — Target: 291
+ *
+ *   🟢 → 🟡 → 🟢 → 🔴 → 🏳️
+ *
+ *   Score: 42 | Normal
+ */
 export function generateShareText(state: GameState): string {
-  const { challenge, darts, status, remainingScore } = state;
+  const { challenge, darts, status } = state;
 
   const lines: string[] = [];
 
-  // Header
-  lines.push(`🎯 Deadeye #${challenge.challengeNumber}`);
-  lines.push(`📊 ${challenge.description}`);
+  // Line 1: Title with date
+  lines.push(`🎯 Deadeye — ${formatDate(challenge.date)}`);
 
-  // Result line
-  const dartCount = darts.length;
-  let resultLine = `Target: ${challenge.targetScore}`;
+  // Line 2: Challenge descriptor with target
+  // e.g. "1998 MLB · Home Runs — Target: 291"
+  // or   "2010–2025 MLB · Strikeouts — Target: 1200"
+  const yearLabel = challenge.seasonStart
+    ? `${challenge.seasonStart}–${challenge.seasonEnd}`
+    : String(challenge.season);
+  let challengeLine = `${yearLabel} MLB · ${challenge.statLabel} — Target: ${challenge.targetScore}`;
+  if (challenge.restriction) {
+    challengeLine += ` (${challenge.restriction.label})`;
+  }
+  lines.push(challengeLine);
 
+  lines.push('');
+
+  // Dart emoji row with arrows — outcome emoji appended at end
+  const dartEmojis = darts.map((d, i) => {
+    if (status === 'bust' && i === darts.length - 1) return '💥';
+    return QUALITY_EMOJI[d.quality];
+  });
+
+  // Append outcome emoji at end if not already shown in last dart
+  if (status === 'standing') {
+    dartEmojis.push('🏳️');
+  } else if (status === 'out_of_darts') {
+    // Last dart emoji already shown; no extra marker needed
+    // but we could add a visual indicator
+  }
+  // 'perfect' (bullseye) and 'bust' are already represented in the last dart emoji
+
+  lines.push(dartEmojis.join(' → ') || '–');
+
+  lines.push('');
+
+  // Score line with mode
   const finalScore = getFinalScore(state);
-  const dartLabel = `${dartCount} dart${dartCount !== 1 ? 's' : ''}`;
+  const modeLabel = state.mode === 'hard' ? 'Hard' : state.mode === 'normal' ? 'Normal' : 'Easy';
 
   if (status === 'perfect') {
-    resultLine += ` · 🎯 Bullseye! · ${dartLabel}`;
+    lines.push(`Score: 0 (Bullseye!) | ${modeLabel}`);
   } else if (status === 'bust') {
-    resultLine += ` · 💥 Bust · ${dartLabel}`;
-  } else if (state.mode !== 'easy' && finalScore !== remainingScore) {
-    resultLine += ` · Score: ${finalScore} (${remainingScore} × multiplier) · ${dartLabel}`;
+    lines.push(`Score: Bust | ${modeLabel}`);
+  } else if (state.mode !== 'easy') {
+    const remaining = getDartsRemaining(state);
+    const multiplier = getMultiplier(remaining);
+    lines.push(`Score: ${finalScore} (${state.remainingScore} × ${multiplier}x) | ${modeLabel}`);
   } else {
-    resultLine += ` · ${remainingScore} left · ${dartLabel}`;
-  }
-  lines.push(resultLine);
-
-  // Mode indicator
-  if (state.mode === 'hard') lines.push('🔴 Hard Mode');
-  else if (state.mode === 'normal') lines.push('🔵 Normal Mode');
-
-  // Restriction
-  if (challenge.restriction) {
-    lines.push(`⚡ ${challenge.restriction.label}`);
+    lines.push(`Score: ${finalScore} | ${modeLabel}`);
   }
 
   lines.push('');
-
-  // Dart emojis
-  const emojiRow = darts.map((d, i) => {
-    if (status === 'bust' && i === darts.length - 1) return getBustEmoji();
-    return QUALITY_EMOJI[d.quality];
-  }).join('');
-
-  lines.push(emojiRow || '–');
-  lines.push('');
-  lines.push('🎯 Play Deadeye: deadeye.game');
+  lines.push('Play: deadeye.game');
 
   return lines.join('\n');
 }
