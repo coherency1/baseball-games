@@ -19,7 +19,7 @@ const OUTPUT_PATH = resolve(process.cwd(), 'public', 'data', 'players.json');
 const MIN_PA = 100;    // minimum plate appearances for batters
 const MIN_IP = 20;     // minimum innings pitched for pitchers
 const START_YEAR = 1900;
-const END_YEAR = 2024;
+const END_YEAR = 2025;
 
 console.log(`📂 Lahman dir: ${LAHMAN_DIR}`);
 console.log(`📄 Output: ${OUTPUT_PATH}`);

@@ -61,12 +61,12 @@ export function throwDart(state: GameState, season: PlayerSeason): GameState {
     quality,
   };
 
-  // Hard mode: going negative = bust
+  // Hard mode: going negative = bust; score stays at previousScore (real darts rules)
   if (rawNewScore < 0 && state.hardMode) {
     return {
       ...state,
       darts: [...state.darts, dart],
-      remainingScore: Math.abs(rawNewScore),
+      remainingScore: previousScore,
       status: 'bust',
     };
   }

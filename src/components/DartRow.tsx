@@ -48,7 +48,10 @@ export function DartRow({ dart, index, statLabel, isBust }: DartRowProps) {
       {/* Score change */}
       <div className={`text-right shrink-0 px-2 py-1 rounded-lg ${styles.badge}`}>
         <p className="text-xs text-slate-400 leading-none">{dart.previousScore}</p>
-        <p className="text-sm font-black leading-none">→ {Math.abs(dart.newScore)}</p>
+        {isBust
+          ? <p className="text-sm font-black leading-none">+{Math.abs(dart.newScore)} over</p>
+          : <p className="text-sm font-black leading-none">→ {Math.abs(dart.newScore)}</p>
+        }
       </div>
     </div>
   );

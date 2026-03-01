@@ -12,9 +12,24 @@ import { getStatValue } from './gameEngine';
 // Epoch: day 1 of Deadeye challenges
 const EPOCH_DATE = '2026-03-01';
 
+// DEV: force a specific challenge for testing. Set to null for production seeding.
+export const DEV_OVERRIDE: ChallengeConfig | null = { seasonStart: 2010, seasonEnd: 2025, statKey: 'K', statLabel: 'Strikeouts (Pitching)' };
+
 // Curated list of interesting year/stat combinations spanning different eras.
 // Each entry represents a potential daily challenge configuration.
 export const CHALLENGE_CONFIGS: ChallengeConfig[] = [
+  // Recent seasons
+  { season: 2025, statKey: 'HR',  statLabel: 'Home Runs' },
+  { season: 2025, statKey: 'SB',  statLabel: 'Stolen Bases' },
+  { season: 2025, statKey: 'RBI', statLabel: 'RBI' },
+  { season: 2025, statKey: 'K',   statLabel: 'Strikeouts (Pitching)' },
+  { season: 2024, statKey: 'HR',  statLabel: 'Home Runs' },
+  { season: 2024, statKey: 'SB',  statLabel: 'Stolen Bases' },
+  { season: 2024, statKey: 'RBI', statLabel: 'RBI' },
+  { season: 2024, statKey: 'K',   statLabel: 'Strikeouts (Pitching)' },
+  { season: 2023, statKey: 'HR',  statLabel: 'Home Runs' },
+  { season: 2023, statKey: 'SB',  statLabel: 'Stolen Bases' },
+  { season: 2022, statKey: 'HR',  statLabel: 'Home Runs' },
   // Home Run eras
   { season: 1998, statKey: 'HR',  statLabel: 'Home Runs' },
   { season: 2001, statKey: 'HR',  statLabel: 'Home Runs' },
@@ -102,16 +117,25 @@ export function getDailyChallenge(allPlayers: PlayerSeason[]): DailyChallenge {
   const today = new Date().toISOString().split('T')[0];
   const challengeNumber = Math.max(1, daysBetween(EPOCH_DATE, today));
 
-  const rng = seedrandom(today);
-  const configIndex = Math.floor(rng() * CHALLENGE_CONFIGS.length);
-  const config = CHALLENGE_CONFIGS[configIndex];
+  // DEV: use override config if set
+  const config: ChallengeConfig = DEV_OVERRIDE ?? (() => {
+    const rng = seedrandom(today);
+    return CHALLENGE_CONFIGS[Math.floor(rng() * CHALLENGE_CONFIGS.length)];
+  })();
 
-  // Filter players for this season/stat
-  const pool = filterByStat(allPlayers, config.statKey, config.season);
+  // Filter players for this season/stat (single year or range)
+  const isRange = config.seasonStart !== undefined;
+  const pool = isRange
+    ? allPlayers.filter(p =>
+        p.yearID >= config.seasonStart! &&
+        p.yearID <= (config.seasonEnd ?? config.seasonStart!) &&
+        getStatValue(p, config.statKey) > 0
+      )
+    : filterByStat(allPlayers, config.statKey, config.season!);
 
-  // Try adding a restriction based on rotation
+  // Restrictions only apply to single-year challenges
   const rotationIndex = challengeNumber % RESTRICTION_ROTATION.length;
-  const rawRestriction = RESTRICTION_ROTATION[rotationIndex];
+  const rawRestriction = isRange ? null : RESTRICTION_ROTATION[rotationIndex];
   let restriction: Restriction | undefined;
 
   if (rawRestriction) {
@@ -119,7 +143,6 @@ export function getDailyChallenge(allPlayers: PlayerSeason[]): DailyChallenge {
       ...rawRestriction,
       label: RESTRICTION_LABELS[rawRestriction.type],
     });
-    // Only apply restriction if there are at least 5 qualifying players
     if (restricted.length >= 5) {
       restriction = { ...rawRestriction, label: RESTRICTION_LABELS[rawRestriction.type] };
     }
@@ -128,15 +151,22 @@ export function getDailyChallenge(allPlayers: PlayerSeason[]): DailyChallenge {
   const finalPool = restriction ? filterByRestriction(pool, restriction) : pool;
   const targetScore = computeTarget(finalPool, config.statKey);
 
+  const seasonDisplay = isRange
+    ? `${config.seasonStart}–${config.seasonEnd}`
+    : String(config.season);
   const desc = restriction
-    ? `${config.season} MLB · ${config.statLabel} (${restriction.label})`
-    : `${config.season} MLB · ${config.statLabel}`;
+    ? `${seasonDisplay} MLB · ${config.statLabel} (${restriction.label})`
+    : `${seasonDisplay} MLB · ${config.statLabel}`;
+
+  const displaySeason = config.season ?? config.seasonEnd ?? config.seasonStart ?? 2025;
 
   return {
     challengeNumber,
     date: today,
     sport: 'MLB',
-    season: config.season,
+    season: displaySeason,
+    seasonStart: config.seasonStart,
+    seasonEnd: config.seasonEnd,
     statKey: config.statKey,
     statLabel: config.statLabel,
     targetScore,
@@ -151,17 +181,24 @@ export function getChallengeForDate(allPlayers: PlayerSeason[], dateStr: string)
   const rng = seedrandom(dateStr);
   const configIndex = Math.floor(rng() * CHALLENGE_CONFIGS.length);
   const config = CHALLENGE_CONFIGS[configIndex];
-  const pool = filterByStat(allPlayers, config.statKey, config.season);
+  const season = config.season ?? config.seasonEnd ?? config.seasonStart ?? 2025;
+  const pool = config.seasonStart !== undefined
+    ? allPlayers.filter(p => p.yearID >= config.seasonStart! && p.yearID <= (config.seasonEnd ?? config.seasonStart!) && getStatValue(p, config.statKey) > 0)
+    : filterByStat(allPlayers, config.statKey, season);
   const targetScore = computeTarget(pool, config.statKey);
 
   return {
     challengeNumber,
     date: dateStr,
     sport: 'MLB',
-    season: config.season,
+    season,
+    seasonStart: config.seasonStart,
+    seasonEnd: config.seasonEnd,
     statKey: config.statKey,
     statLabel: config.statLabel,
     targetScore,
-    description: `${config.season} MLB · ${config.statLabel}`,
+    description: config.seasonStart !== undefined
+      ? `${config.seasonStart}–${config.seasonEnd} MLB · ${config.statLabel}`
+      : `${season} MLB · ${config.statLabel}`,
   };
 }

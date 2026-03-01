@@ -38,7 +38,9 @@ export interface Restriction {
 }
 
 export interface ChallengeConfig {
-  season: number;
+  season?: number;           // single year (mutually exclusive with range)
+  seasonStart?: number;      // range start
+  seasonEnd?: number;        // range end
   statKey: StatKey;
   statLabel: string;
 }
@@ -47,12 +49,14 @@ export interface DailyChallenge {
   challengeNumber: number;   // days since epoch start date
   date: string;              // "2026-02-27"
   sport: 'MLB';
-  season: number;
+  season: number;            // primary/display year (end year for ranges)
+  seasonStart?: number;      // set for multi-year range challenges
+  seasonEnd?: number;        // set for multi-year range challenges
   statKey: StatKey;
   statLabel: string;
   targetScore: number;       // sum of top 5 qualifying player-seasons
   restriction?: Restriction;
-  description: string;       // "1998 MLB · Home Runs"
+  description: string;       // "1998 MLB · Home Runs" or "2010–2025 MLB · Strikeouts"
 }
 
 export type DartQuality = 'bullseye' | 'great' | 'good' | 'small';

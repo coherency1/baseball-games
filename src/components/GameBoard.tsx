@@ -3,7 +3,7 @@ import type Fuse from 'fuse.js';
 import type { PlayerSeason, GameState, DailyChallenge } from '../types/game';
 import type { PlayerEntry } from '../lib/playerSearch';
 import { buildPlayerIndex, buildFuseIndex } from '../lib/playerSearch';
-import { getDailyChallenge } from '../lib/dailyChallenge';
+import { getDailyChallenge, DEV_OVERRIDE } from '../lib/dailyChallenge';
 import { createInitialState, throwDart, standGame, isGameOver, getUsedSeasonIds } from '../lib/gameEngine';
 import { Header } from './Header';
 import { ScoreDisplay } from './ScoreDisplay';
@@ -60,8 +60,19 @@ export function GameBoard() {
   const [hardMode, setHardMode] = useState(false);
   const [showShare, setShowShare] = useState(false);
 
-  // Build search index
-  const playerIndex = useMemo<PlayerEntry[]>(() => buildPlayerIndex(allSeasons), [allSeasons]);
+  // Build search index — scoped to challenge year/range + stat so autocomplete only
+  // shows players who actually have qualifying seasons to pick from.
+  const playerIndex = useMemo<PlayerEntry[]>(() => {
+    if (!gameState) return buildPlayerIndex(allSeasons);
+    const { season, seasonStart, seasonEnd, statKey } = gameState.challenge;
+    const relevant = allSeasons.filter(s => {
+      const inSeason = seasonStart !== undefined
+        ? s.yearID >= seasonStart && s.yearID <= (seasonEnd ?? seasonStart)
+        : s.yearID === season;
+      return inSeason && ((s as unknown as Record<string, number>)[statKey] ?? 0) > 0;
+    });
+    return buildPlayerIndex(relevant);
+  }, [allSeasons, gameState?.challenge.season, gameState?.challenge.seasonStart, gameState?.challenge.seasonEnd, gameState?.challenge.statKey]);
   const fuse = useMemo<Fuse<PlayerEntry>>(() => buildFuseIndex(playerIndex), [playerIndex]);
 
   // Load data + init game
@@ -74,8 +85,8 @@ export function GameBoard() {
         const data: PlayerSeason[] = await res.json();
         setAllSeasons(data);
 
-        // Try restoring today's saved state
-        const saved = loadSavedState();
+        // Try restoring today's saved state (skip when DEV_OVERRIDE is active)
+        const saved = DEV_OVERRIDE ? null : loadSavedState();
         if (saved) {
           setGameState(saved);
           setHardMode(saved.hardMode);
@@ -199,14 +210,21 @@ export function GameBoard() {
               fuse={fuse}
               allSeasons={allSeasons}
               challengeStatKey={gameState.challenge.statKey}
-              challengeSeason={gameState.challenge.season}
+              challengeSeasonStart={gameState.challenge.seasonStart ?? gameState.challenge.season}
+              challengeSeasonEnd={gameState.challenge.seasonEnd}
               usedIds={usedIds}
               disabled={false}
               onSelect={handleThrowDart}
             />
             {/* How-to hint */}
             <p className="text-center text-xs text-slate-500 px-4">
-              Search a player from <strong className="text-slate-400">{gameState.challenge.season}</strong> to subtract their {gameState.challenge.statLabel}.
+              Search a player from{' '}
+              <strong className="text-slate-400">
+                {gameState.challenge.seasonStart
+                  ? `${gameState.challenge.seasonStart}–${gameState.challenge.seasonEnd}`
+                  : gameState.challenge.season}
+              </strong>{' '}
+              to subtract their {gameState.challenge.statLabel}.
               {gameState.darts.length > 0 && (
                 <button
                   onClick={handleStand}

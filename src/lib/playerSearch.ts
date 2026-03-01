@@ -78,5 +78,5 @@ export function getPlayerSeasons(
       used: usedIds.has(s.id),
     }))
     .filter(item => item.statValue > 0)
-    .sort((a, b) => b.statValue - a.statValue);
+    .sort((a, b) => a.season.yearID - b.season.yearID);
 }
