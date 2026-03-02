@@ -9,8 +9,8 @@ import { MLB_TEAMS } from '../data/teams';
 // ── Stat density classification (determines dart limits) ─────────────────────
 const STAT_DENSITY: Record<StatKey, StatDensity> = {
   HR: 'sparse', SV: 'sparse',
-  RBI: 'standard', SB: 'standard', BB: 'standard', K: 'standard', R: 'standard', XBH: 'standard',
-  H: 'dense', W: 'dense', AVG: 'dense', OBP: 'dense', OPS: 'dense',
+  RBI: 'standard', SB: 'standard', BB: 'standard', K: 'standard', R: 'standard',
+  H: 'dense', W: 'dense', TB: 'dense', AVG: 'dense', OBP: 'dense', OPS: 'dense',
 };
 
 export function getStatDensity(statKey: StatKey): StatDensity {
@@ -210,15 +210,8 @@ export function getFinalScore(state: GameState): number {
   // Bullseye always = 0
   if (state.status === 'perfect') return 0;
 
-  const distance = state.remainingScore;
-
-  // Easy: raw distance, no multiplier
-  if (state.mode === 'easy') return distance;
-
-  // Normal/Hard: distance × darts-remaining multiplier
-  const remaining = getDartsRemaining(state);
-  const multiplier = getMultiplier(remaining);
-  return Math.round(distance * multiplier);
+  // Score = distance remaining. Lower = better. All modes.
+  return state.remainingScore;
 }
 
 export function getUsedSeasonIds(state: GameState): Set<string> {
@@ -229,28 +222,37 @@ export function getUsedPlayerIds(state: GameState): Set<string> {
   return new Set(state.darts.map(d => d.playerSeason.playerID));
 }
 
-// ── Star rating based on ghost path efficiency ─────────────────────────────
+// ── Star rating: distance-first, dart efficiency as bonus ────────────────────
 /**
- * 3 stars: dart count ≤ ghost path length (matched or beat optimal)
- * 2 stars: ghost path + 1 or +2
+ * 3 stars: bullseye (distance = 0)
+ * 2 stars: distance ≤ 10% of target,
+ *          OR ≤ 20% AND darts ≤ ghost path length (efficiency bonus)
  * 1 star:  completed without busting
  * 0 stars: bust or still playing
  */
 export function getStarRating(state: GameState): number {
   if (state.status === 'bust' || state.status === 'playing') return 0;
 
+  // 3 stars: bullseye only
+  if (state.status === 'perfect') return 3;
+
+  const target = state.challenge.targetScore;
+  if (target <= 0) return 1;
+
+  const distance = state.remainingScore;
+  const pct = distance / target;
+
+  // 2 stars: within 10% of target
+  if (pct <= 0.10) return 2;
+
+  // 2 stars (efficiency bonus): within 20% AND used ≤ ghost path darts
   const ghostPath = state.challenge.ghostPath;
-  if (!ghostPath || ghostPath.length === 0) return 1;
+  if (pct <= 0.20 && ghostPath && ghostPath.length > 0) {
+    const ghostTotal = ghostPath.reduce((sum, step) => sum + step.statValue, 0);
+    if (ghostTotal >= target && state.darts.length <= ghostPath.length) return 2;
+  }
 
-  // Ghost path didn't reach target — can't compare, give 1 star for completion
-  const ghostTotal = ghostPath.reduce((sum, step) => sum + step.statValue, 0);
-  if (ghostTotal < state.challenge.targetScore) return 1;
-
-  const playerDarts = state.darts.length;
-  const ghostDarts = ghostPath.length;
-
-  if (playerDarts <= ghostDarts) return 3;
-  if (playerDarts <= ghostDarts + 2) return 2;
+  // 1 star: completed
   return 1;
 }
 

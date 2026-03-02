@@ -53,7 +53,7 @@ export function PlayerSearch({
       setShowDropdown(false);
       return;
     }
-    const found = searchPlayers(fuse, query, 8);
+    const found = searchPlayers(fuse, query, 8, challengeSeasonStart, challengeSeasonEnd);
     setResults(found);
     setShowDropdown(found.length > 0);
   }, [query, fuse]);
@@ -132,9 +132,9 @@ export function PlayerSearch({
           />
         </div>
 
-        {/* Player autocomplete dropdown (inline, below input) */}
+        {/* Player autocomplete dropdown (opens upward since search is at page bottom) */}
         {showDropdown && !selectedPlayer && results.length > 0 && (
-          <div className="absolute z-50 left-4 right-4 mt-1 bg-slate-800 border border-slate-600 rounded-xl shadow-2xl overflow-hidden max-h-72 overflow-y-auto">
+          <div className="absolute z-50 left-4 right-4 bottom-full mb-1 bg-slate-800 border border-slate-600 rounded-xl shadow-2xl overflow-hidden max-h-72 overflow-y-auto">
             {results.map(player => (
               <button
                 key={player.playerID}

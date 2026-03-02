@@ -20,7 +20,7 @@ export interface PlayerSeason {
   SB: number;
   BB: number;
   R: number;
-  XBH: number;           // 2B + 3B + HR
+  TB: number;            // total bases: H + 2B + 2×3B + 3×HR
   // Rate stats ×1000 (e.g., .356 AVG → 356; batters only, pitchers get 0)
   AVG: number;
   OBP: number;
@@ -38,7 +38,7 @@ export interface PlayerSeason {
   isRookie: boolean;            // first qualifying season for this playerID
 }
 
-export type StatKey = 'HR' | 'RBI' | 'H' | 'SB' | 'BB' | 'R' | 'XBH' | 'W' | 'SV' | 'K' | 'AVG' | 'OBP' | 'OPS';
+export type StatKey = 'HR' | 'RBI' | 'H' | 'SB' | 'BB' | 'R' | 'TB' | 'W' | 'SV' | 'K' | 'AVG' | 'OBP' | 'OPS';
 
 export interface Restriction {
   type: 'allstar' | 'hof' | 'award' | 'ws_winner' | 'rookie' | 'league' | 'division' | 'mvp' | 'cy_young' | 'silver_slugger' | 'gold_glove';

@@ -51,16 +51,37 @@ export function buildFuseIndex(players: PlayerEntry[]): Fuse<PlayerEntry> {
   });
 }
 
-// Search players by name (2+ characters required)
+// Search players by name (2+ characters required).
+// When challengeYearStart/End are provided, players active during that era
+// are boosted to the top (without revealing pool membership — just career overlap).
 export function searchPlayers(
   fuse: Fuse<PlayerEntry>,
   query: string,
-  limit = 10
+  limit = 10,
+  challengeYearStart?: number,
+  challengeYearEnd?: number,
 ): PlayerEntry[] {
   if (query.length < 2) return [];
   const normalized = normalizeName(query);
-  const results = fuse.search(normalized, { limit });
-  return results.map(r => r.item);
+  // Fetch more than needed so we have room to re-rank
+  const results = fuse.search(normalized, { limit: limit * 2 });
+
+  if (challengeYearStart === undefined) {
+    return results.slice(0, limit).map(r => r.item);
+  }
+
+  const yearEnd = challengeYearEnd ?? challengeYearStart;
+
+  // Stable re-sort: era-relevant players first, then by original Fuse score
+  const sorted = results.sort((a, b) => {
+    const aOverlap = a.item.careerStart <= yearEnd && a.item.careerEnd >= challengeYearStart;
+    const bOverlap = b.item.careerStart <= yearEnd && b.item.careerEnd >= challengeYearStart;
+    if (aOverlap && !bOverlap) return -1;
+    if (!aOverlap && bOverlap) return 1;
+    return (a.score ?? 1) - (b.score ?? 1); // lower score = better match
+  });
+
+  return sorted.slice(0, limit).map(r => r.item);
 }
 
 // Get all seasons for a specific player, filtered by what's valid for the challenge.

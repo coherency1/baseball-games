@@ -4,7 +4,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import type { GameState } from '../types/game';
-import { getFinalScore, getDartsRemaining, getMultiplier, getStarRating } from './gameEngine';
+import { getFinalScore, getStarRating } from './gameEngine';
 
 // Record<string, string> for backward compat — old saves may have 'good'/'small'
 const QUALITY_EMOJI: Record<string, string> = {
@@ -86,10 +86,6 @@ export function generateShareText(state: GameState): string {
     lines.push(`Score: 0 (Bullseye!) | ${modeLabel}`);
   } else if (status === 'bust') {
     lines.push(`Score: Bust | ${modeLabel}`);
-  } else if (state.mode !== 'easy') {
-    const remaining = getDartsRemaining(state);
-    const multiplier = getMultiplier(remaining);
-    lines.push(`Score: ${finalScore} (${state.remainingScore} × ${multiplier}x) | ${modeLabel}`);
   } else {
     lines.push(`Score: ${finalScore} | ${modeLabel}`);
   }
@@ -100,18 +96,30 @@ export function generateShareText(state: GameState): string {
   return lines.join('\n');
 }
 
-export function copyToClipboard(text: string): Promise<void> {
-  if (navigator.clipboard?.writeText) {
-    return navigator.clipboard.writeText(text);
+export async function copyToClipboard(text: string): Promise<boolean> {
+  // Try modern clipboard API first
+  try {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(text);
+      return true;
+    }
+  } catch {
+    // Clipboard API failed (permissions, focus, etc.) — try fallback
   }
-  // Fallback for older browsers
-  const el = document.createElement('textarea');
-  el.value = text;
-  el.style.position = 'fixed';
-  el.style.opacity = '0';
-  document.body.appendChild(el);
-  el.select();
-  document.execCommand('copy');
-  document.body.removeChild(el);
-  return Promise.resolve();
+  // Fallback: hidden textarea + execCommand
+  try {
+    const el = document.createElement('textarea');
+    el.value = text;
+    el.style.position = 'fixed';
+    el.style.left = '-9999px';
+    el.style.opacity = '0';
+    document.body.appendChild(el);
+    el.focus();
+    el.select();
+    const ok = document.execCommand('copy');
+    document.body.removeChild(el);
+    return ok;
+  } catch {
+    return false;
+  }
 }

@@ -3,8 +3,8 @@ import type Fuse from 'fuse.js';
 import type { PlayerSeason, GameState, DailyChallenge, GameMode } from '../types/game';
 import type { PlayerEntry } from '../lib/playerSearch';
 import { buildPlayerIndex, buildFuseIndex } from '../lib/playerSearch';
-import { getDailyChallenge, DEV_OVERRIDE } from '../lib/dailyChallenge';
-import { createInitialState, throwDart, standGame, isGameOver, getUsedSeasonIds, getUsedPlayerIds, getDartsRemaining, getMultiplier, getFinalScore, getDartLimit, getStatDensity, validateSelection, getStarRating } from '../lib/gameEngine';
+import { getDailyChallenge, getChallengeByIndex, CHALLENGE_CONFIGS, DEV_OVERRIDE } from '../lib/dailyChallenge';
+import { createInitialState, throwDart, standGame, isGameOver, getUsedSeasonIds, getUsedPlayerIds, getFinalScore, getDartLimit, getStatDensity, validateSelection, getStarRating } from '../lib/gameEngine';
 import { Header } from './Header';
 import { ScoreDisplay } from './ScoreDisplay';
 import { DartRow } from './DartRow';
@@ -75,6 +75,7 @@ export function GameBoard() {
   const [mode, setMode] = useState<GameMode>(loadSavedMode);
   const [showShare, setShowShare] = useState(false);
   const [rejectionMessage, setRejectionMessage] = useState<string | null>(null);
+  const [devConfigIndex, setDevConfigIndex] = useState<number | null>(null);
 
   // Build search index from ALL players — pool membership is never revealed through search.
   // Validation happens after selection, with specific rejection messages.
@@ -156,6 +157,19 @@ export function GameBoard() {
     const initial = createInitialState(challenge, mode);
     setGameState(initial);
     setShowShare(false);
+    setDevConfigIndex(null);
+  }
+
+  // Dev mode: cycle through specific config indices
+  function handleDevConfig(index: number) {
+    if (!allSeasons.length) return;
+    const wrappedIndex = ((index % CHALLENGE_CONFIGS.length) + CHALLENGE_CONFIGS.length) % CHALLENGE_CONFIGS.length;
+    setDevConfigIndex(wrappedIndex);
+    const challenge = getChallengeByIndex(allSeasons, wrappedIndex);
+    const initial = createInitialState(challenge, mode);
+    setGameState(initial);
+    setShowShare(false);
+    setRejectionMessage(null);
   }
 
   // ── Loading state ─────────────────────────────────────────────────────────
@@ -205,7 +219,6 @@ export function GameBoard() {
           dartsThrown={gameState.darts.length}
           dartLimit={gameState.dartLimit}
           mode={gameState.mode}
-          multiplierPreview={gameState.mode !== 'easy' ? getMultiplier(getDartsRemaining(gameState)) : undefined}
           strikes={gameState.strikes}
           starRating={gameOver ? getStarRating(gameState) : undefined}
         />
@@ -302,8 +315,64 @@ export function GameBoard() {
       {showShare && gameState && (
         <ShareModal
           gameState={gameState}
+          allSeasons={allSeasons}
           onClose={() => setShowShare(false)}
         />
+      )}
+
+      {/* Dev panel — only in dev mode */}
+      {import.meta.env.DEV && (
+        <div className="fixed bottom-0 left-0 right-0 bg-slate-900/95 border-t border-slate-700 px-3 py-2 z-50 text-xs space-y-1">
+          <div className="flex items-center gap-2">
+            <span className="text-slate-500 font-mono font-bold">DEV</span>
+            <button
+              onClick={() => handleDevConfig((devConfigIndex ?? 0) - 1)}
+              className="px-2 py-1 rounded bg-slate-700 hover:bg-slate-600 text-slate-300"
+            >
+              ◀
+            </button>
+            <button
+              onClick={() => {
+                const input = prompt(`Config index (0–${CHALLENGE_CONFIGS.length - 1}):`);
+                if (input !== null) handleDevConfig(parseInt(input, 10) || 0);
+              }}
+              className="px-2 py-1 rounded bg-slate-700 hover:bg-slate-600 text-amber-300 font-mono min-w-[3ch] text-center cursor-pointer"
+              title="Click to jump to a specific config"
+            >
+              {devConfigIndex !== null ? devConfigIndex : '—'}
+            </button>
+            <button
+              onClick={() => handleDevConfig((devConfigIndex ?? -1) + 1)}
+              className="px-2 py-1 rounded bg-slate-700 hover:bg-slate-600 text-slate-300"
+            >
+              ▶
+            </button>
+            <span className="text-slate-500">|</span>
+            <span className="text-slate-300 truncate">
+              {gameState && (
+                <>
+                  T=<strong className="text-amber-300">{gameState.challenge.targetScore}</strong>
+                  {' · '}Ghost={gameState.challenge.ghostPath?.length ?? 0}
+                  {' · '}Limit={gameState.dartLimit === Infinity ? '∞' : gameState.dartLimit}
+                </>
+              )}
+            </span>
+            <button
+              onClick={handleNewGame}
+              className="ml-auto px-2 py-1 rounded bg-slate-700 hover:bg-slate-600 text-slate-300"
+            >
+              Today
+            </button>
+          </div>
+          {gameState && (
+            <div className="text-slate-500 font-mono truncate">
+              {gameState.challenge.description}
+              {gameState.challenge.ghostPath && gameState.challenge.ghostPath.length > 0 && (
+                <> · Path: {gameState.challenge.ghostPath.map(s => `${s.name} (${s.statValue})`).join(' → ')}</>
+              )}
+            </div>
+          )}
+        </div>
       )}
     </div>
   );

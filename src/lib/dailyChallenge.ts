@@ -14,73 +14,54 @@ import { MLB_TEAMS } from '../data/teams';
 const EPOCH_DATE = '2026-03-01';
 
 // DEV: force a specific challenge for testing. Set to null for production seeding.
-export const DEV_OVERRIDE: ChallengeConfig | null = { seasonStart: 2010, seasonEnd: 2025, statKey: 'K', statLabel: 'Strikeouts (Pitching)' };
+export const DEV_OVERRIDE: ChallengeConfig | null = null;
 
-// Curated list of interesting year/stat combinations spanning different eras.
-// W (Wins) removed from rotation per planning doc.
+// ── 30 Curated Challenge Configs ─────────────────────────────────────────────
+// Mix of iconic single years, era ranges, and threshold ranges.
+// Stat balance: HR 20%, SB 20%, K 17%, RBI 10%, H/SV/BB/TB/R each 7%
 export const CHALLENGE_CONFIGS: ChallengeConfig[] = [
-  // Recent seasons
-  { season: 2025, statKey: 'HR',  statLabel: 'Home Runs' },
-  { season: 2025, statKey: 'SB',  statLabel: 'Stolen Bases' },
-  { season: 2025, statKey: 'RBI', statLabel: 'RBI' },
-  { season: 2025, statKey: 'K',   statLabel: 'Strikeouts (Pitching)' },
-  { season: 2024, statKey: 'HR',  statLabel: 'Home Runs' },
-  { season: 2024, statKey: 'SB',  statLabel: 'Stolen Bases' },
-  { season: 2024, statKey: 'RBI', statLabel: 'RBI' },
-  { season: 2024, statKey: 'K',   statLabel: 'Strikeouts (Pitching)' },
-  { season: 2023, statKey: 'HR',  statLabel: 'Home Runs' },
-  { season: 2023, statKey: 'SB',  statLabel: 'Stolen Bases' },
-  { season: 2022, statKey: 'HR',  statLabel: 'Home Runs' },
-  // Home Run eras
-  { season: 1998, statKey: 'HR',  statLabel: 'Home Runs' },
-  { season: 2001, statKey: 'HR',  statLabel: 'Home Runs' },
-  { season: 1961, statKey: 'HR',  statLabel: 'Home Runs' },
-  { season: 1927, statKey: 'HR',  statLabel: 'Home Runs' },
-  { season: 2019, statKey: 'HR',  statLabel: 'Home Runs' },
-  { season: 1956, statKey: 'HR',  statLabel: 'Home Runs' },
-  { season: 2017, statKey: 'HR',  statLabel: 'Home Runs' },
-  // Stolen Base eras
-  { season: 1985, statKey: 'SB',  statLabel: 'Stolen Bases' },
-  { season: 1980, statKey: 'SB',  statLabel: 'Stolen Bases' },
-  { season: 1962, statKey: 'SB',  statLabel: 'Stolen Bases' },
-  { season: 2023, statKey: 'SB',  statLabel: 'Stolen Bases' },
-  // Hits
-  { season: 1980, statKey: 'H',   statLabel: 'Hits' },
-  { season: 2004, statKey: 'H',   statLabel: 'Hits' },
-  { season: 1930, statKey: 'H',   statLabel: 'Hits' },
-  // RBI
-  { season: 1930, statKey: 'RBI', statLabel: 'RBI' },
-  { season: 1998, statKey: 'RBI', statLabel: 'RBI' },
-  { season: 2006, statKey: 'RBI', statLabel: 'RBI' },
-  // Runs
-  { season: 1936, statKey: 'R',   statLabel: 'Runs' },
-  { season: 1999, statKey: 'R',   statLabel: 'Runs' },
-  // Walks
-  { season: 2002, statKey: 'BB',  statLabel: 'Walks' },
-  { season: 1996, statKey: 'BB',  statLabel: 'Walks' },
-  // Extra Base Hits
-  { season: 2000, statKey: 'XBH', statLabel: 'Extra Base Hits' },
-  { season: 1930, statKey: 'XBH', statLabel: 'Extra Base Hits' },
-  // Pitching — Strikeouts
-  { season: 2002, statKey: 'K',   statLabel: 'Strikeouts (Pitching)' },
-  { season: 1965, statKey: 'K',   statLabel: 'Strikeouts (Pitching)' },
-  { season: 1973, statKey: 'K',   statLabel: 'Strikeouts (Pitching)' },
-  { season: 2014, statKey: 'K',   statLabel: 'Strikeouts (Pitching)' },
-  // Saves
-  { season: 2008, statKey: 'SV',  statLabel: 'Saves' },
-  { season: 1990, statKey: 'SV',  statLabel: 'Saves' },
-  // Threshold categories — broad year range, pool filtered to threshold
-  { seasonStart: 1950, seasonEnd: 2025, statKey: 'AVG', statLabel: 'Batting Average (\u00d71000)', threshold: 300 },
-  { seasonStart: 1950, seasonEnd: 2025, statKey: 'OPS', statLabel: 'OPS (\u00d71000)', threshold: 1000 },
-  { seasonStart: 1950, seasonEnd: 2025, statKey: 'OBP', statLabel: 'On-Base % (\u00d71000)', threshold: 400 },
-  { seasonStart: 1950, seasonEnd: 2025, statKey: 'HR', statLabel: '40+ HR Seasons', threshold: 40 },
-  { seasonStart: 1950, seasonEnd: 2025, statKey: 'RBI', statLabel: '100+ RBI Seasons', threshold: 100 },
-  { seasonStart: 1950, seasonEnd: 2025, statKey: 'H', statLabel: '200+ Hit Seasons', threshold: 200 },
-  { seasonStart: 1950, seasonEnd: 2025, statKey: 'SB', statLabel: '50+ SB Seasons', threshold: 50 },
-  { seasonStart: 1950, seasonEnd: 2025, statKey: 'SV', statLabel: '40+ Save Seasons', threshold: 40 },
+  // ── Iconic Single Years (8) ──────────────────────────────────────────────
+  { season: 1998, statKey: 'HR',  statLabel: 'Home Runs' },          // McGwire/Sosa HR chase
+  { season: 2001, statKey: 'HR',  statLabel: 'Home Runs' },          // Bonds 73
+  { season: 1961, statKey: 'HR',  statLabel: 'Home Runs' },          // Maris vs Mantle
+  { season: 1985, statKey: 'SB',  statLabel: 'Stolen Bases' },       // Henderson/Coleman
+  { season: 2023, statKey: 'SB',  statLabel: 'Stolen Bases' },       // New SB rules explosion
+  { season: 2004, statKey: 'H',   statLabel: 'Hits' },               // Ichiro 262 hits
+  { season: 1968, statKey: 'K',   statLabel: 'Strikeouts (Pitching)' }, // Year of the Pitcher
+  { season: 1930, statKey: 'RBI', statLabel: 'RBI' },                // Hack Wilson 191 RBI
+
+  // ── Era Ranges (13) ──────────────────────────────────────────────────────
+  { seasonStart: 2020, seasonEnd: 2025, statKey: 'HR',  statLabel: 'Home Runs' },          // Modern Mashers
+  { seasonStart: 2020, seasonEnd: 2025, statKey: 'SB',  statLabel: 'Stolen Bases' },       // Modern Speed
+  { seasonStart: 2020, seasonEnd: 2025, statKey: 'K',   statLabel: 'Strikeouts (Pitching)' }, // Modern Strikeout Era
+  { seasonStart: 2020, seasonEnd: 2025, statKey: 'RBI', statLabel: 'RBI' },                // Modern Run Production
+  { seasonStart: 2010, seasonEnd: 2019, statKey: 'K',   statLabel: 'Strikeouts (Pitching)' }, // Strikeout Surge
+  { seasonStart: 2010, seasonEnd: 2019, statKey: 'SV',  statLabel: 'Saves' },              // Modern Closers
+  { seasonStart: 2000, seasonEnd: 2009, statKey: 'SB',  statLabel: 'Stolen Bases' },       // 2000s Speed
+  { seasonStart: 1980, seasonEnd: 1999, statKey: 'SB',  statLabel: 'Stolen Bases' },       // 80s-90s Baserunning
+  { seasonStart: 1960, seasonEnd: 1980, statKey: 'K',   statLabel: 'Strikeouts (Pitching)' }, // Classic Power Pitching
+  { seasonStart: 2000, seasonEnd: 2025, statKey: 'BB',  statLabel: 'Walks' },              // Moneyball Walks
+  { seasonStart: 2010, seasonEnd: 2025, statKey: 'TB',  statLabel: 'Total Bases' },        // Total Base Leaders
+  { seasonStart: 1990, seasonEnd: 2009, statKey: 'R',   statLabel: 'Runs' },               // Offensive Explosion Era
+  { seasonStart: 1950, seasonEnd: 1979, statKey: 'HR',  statLabel: 'Home Runs' },          // Classic Era Power
+
+  // ── Threshold Ranges (9) ─────────────────────────────────────────────────
+  // statLabel = clean stat name (used in search prompt); description builder adds threshold prefix
+  { seasonStart: 1950, seasonEnd: 2025, statKey: 'HR',  statLabel: 'Home Runs',              threshold: 40 },
+  { seasonStart: 1950, seasonEnd: 2025, statKey: 'RBI', statLabel: 'RBI',                    threshold: 100 },
+  { seasonStart: 1950, seasonEnd: 2025, statKey: 'H',   statLabel: 'Hits',                   threshold: 200 },
+  { seasonStart: 1950, seasonEnd: 2025, statKey: 'SB',  statLabel: 'Stolen Bases',           threshold: 50 },
+  { seasonStart: 1950, seasonEnd: 2025, statKey: 'SV',  statLabel: 'Saves',                  threshold: 40 },
+  { seasonStart: 1950, seasonEnd: 2025, statKey: 'K',   statLabel: 'Strikeouts (Pitching)',   threshold: 200 },
+  { seasonStart: 1950, seasonEnd: 2025, statKey: 'BB',  statLabel: 'Walks',                  threshold: 100 },
+  { seasonStart: 1950, seasonEnd: 2025, statKey: 'TB',  statLabel: 'Total Bases',            threshold: 300 },
+  { seasonStart: 1950, seasonEnd: 2025, statKey: 'R',   statLabel: 'Runs',                   threshold: 100 },
 ];
 
-// Restriction rotation: periodic restrictions across challenges (if solvable)
+// ── Restriction rotation ─────────────────────────────────────────────────────
+// Periodic restrictions across challenges. Applied to ALL config types.
+// Validated with gate checks: must have ≥15 deduped players and produce a
+// solvable target — otherwise restriction is silently dropped.
 const RESTRICTION_ROTATION: Array<Omit<Restriction, 'label'> | null> = [
   null, null, null, null,
   { type: 'allstar' },
@@ -121,6 +102,9 @@ const RESTRICTION_LABELS: Record<string, string> = {
   silver_slugger: 'Silver Slugger winners only',
   gold_glove: 'Gold Glove winners only',
 };
+
+// Minimum deduped players required for a restriction to be applied
+const MIN_RESTRICTED_POOL = 15;
 
 function daysBetween(a: string, b: string): number {
   const msPerDay = 24 * 60 * 60 * 1000;
@@ -179,136 +163,292 @@ function deduplicatePool(pool: PlayerSeason[], statKey: StatKey): DeduplicatedPl
   return Array.from(map.values()).sort((a, b) => b.statValue - a.statValue);
 }
 
-// ── Target generation: validated non-trivial target ───────────────────────────
+// ── DP-based target generation + short ghost paths ──────────────────────────
+//
+// Uses minimum-cardinality subset sum (0/1 knapsack variant) on the FULL
+// candidate pool to find the shortest possible ghost path.
+//
+// Algorithm:
+// 1. DP on all deduped candidates → TRUE minimum darts for every reachable sum
+// 2. Target selection prefers short ghost K (idealGhostK = max(3, hardLimit-2))
+// 3. DFS with DP-guided pruning → near-instant path reconstruction
+//
+// Key design:
+// - idealGhostK: Sparse(HR)=3, Standard(RBI/K/SB)=4, Dense(H/TB)=5
+// - 3★ = match ghost path (3-5 darts), a real achievement
+// - Hard mode uses its dart limit (5-7) — generous compared to ghost
+// - Normal mode gives 2-3 extra darts beyond hard
 
 /**
- * Check if a target can be reached using distinct players from the pool
- * within a given dart limit. Returns the number of distinct paths found
- * (stops counting after finding `needed` paths).
+ * DP minimum-cardinality subset sum.
+ * For each reachable sum s ∈ [0, maxSum], computes:
+ *   dp[s]    = minimum number of elements to reach s (0/1 knapsack)
+ *   count[s] = number of distinct min-cardinality subsets reaching s
+ *
+ * O(n × maxSum) time, O(maxSum) space.
  */
-function countPaths(
-  target: number,
-  candidates: DeduplicatedPlayer[],
-  dartLimit: number,
-  needed: number,
-): number {
-  let pathsFound = 0;
+function dpMinSubsetSum(
+  values: number[],
+  maxSum: number,
+): { dp: Uint16Array; count: Float64Array } {
+  const dp = new Uint16Array(maxSum + 1).fill(65535);
+  const count = new Float64Array(maxSum + 1);
+  dp[0] = 0;
+  count[0] = 1;
 
-  // DFS with pruning: try to find `needed` distinct combinations summing to target
-  function dfs(remaining: number, startIdx: number, depth: number) {
-    if (pathsFound >= needed) return;
-    if (remaining === 0) { pathsFound++; return; }
-    if (depth >= dartLimit) return;
-    if (remaining < 0) return;
-
-    for (let i = startIdx; i < candidates.length && pathsFound < needed; i++) {
-      const val = candidates[i].statValue;
-      if (val > remaining) continue; // skip if too big
-      // Pruning: if the largest remaining candidate is too small to
-      // reach the remaining target within the dart limit, skip
-      if (val * (dartLimit - depth) < remaining) break; // sorted desc, so all following are smaller
-      dfs(remaining - val, i + 1, depth + 1);
+  for (const v of values) {
+    // Right to left: each element used at most once (0/1 knapsack)
+    for (let s = maxSum; s >= v; s--) {
+      const newK = dp[s - v] + 1;
+      if (newK < dp[s]) {
+        dp[s] = newK;
+        count[s] = count[s - v];
+      } else if (newK === dp[s] && newK < 65535) {
+        count[s] = Math.min(count[s] + count[s - v], 1e9); // cap to avoid overflow
+      }
     }
   }
 
-  dfs(target, 0, 0);
-  return pathsFound;
+  return { dp, count };
 }
 
 /**
- * Generate a validated target by combining 3-4 candidates from the top 20.
- * The target must:
- * 1. Not be achievable with a single dart
- * 2. Have at least 2 distinct multi-dart solution paths
+ * DFS to find one actual path of exactly K elements summing to target.
+ * Candidates must be sorted descending by statValue.
+ *
+ * DP-guided pruning: when the DP table is provided, each branch checks
+ * whether the remaining sum is achievable with the remaining dart slots.
+ * This eliminates dead branches early, making reconstruction near-instant
+ * even with 200+ candidates. Pruning is optimistic (DP was built on the
+ * full pool, not just unused elements) so correctness is preserved.
+ */
+function findPathOfK(
+  candidates: DeduplicatedPlayer[],
+  target: number,
+  k: number,
+  dp?: Uint16Array,
+): DeduplicatedPlayer[] | null {
+  const result: DeduplicatedPlayer[] = [];
+
+  function dfs(remaining: number, startIdx: number, depth: number): boolean {
+    if (remaining === 0 && depth === k) return true;
+    if (depth >= k || remaining <= 0) return false;
+
+    const dartsLeft = k - depth;
+    for (let i = startIdx; i < candidates.length; i++) {
+      const v = candidates[i].statValue;
+      if (v > remaining) continue;
+      // Pruning: if largest remaining can't fill the target in dartsLeft
+      if (v * dartsLeft < remaining) break; // sorted desc
+      // DP-guided pruning: skip if remaining-v needs more darts than we'll have
+      const newRemaining = remaining - v;
+      if (dp && newRemaining > 0 && newRemaining < dp.length && dp[newRemaining] > dartsLeft - 1) continue;
+      result.push(candidates[i]);
+      if (dfs(newRemaining, i + 1, depth + 1)) return true;
+      result.pop();
+    }
+    return false;
+  }
+
+  dfs(target, 0, 0);
+  return result.length === k ? result : null;
+}
+
+/**
+ * Generate a target with a short ghost path using DP subset sum on the
+ * FULL candidate pool.
+ *
+ * Algorithm:
+ * 1. Dedup pool — use ALL candidates (not just top 50)
+ * 2. Build DP: minimum elements + solution count for every reachable sum
+ * 3. Compute idealGhostK = max(3, hardLimit - 2):
+ *      Sparse (HR/SV): 3 darts
+ *      Standard (RBI/SB/BB/K/R): 4 darts
+ *      Dense (H/TB/W): 5 darts
+ * 4. Select targets where dp[t] = idealGhostK with ≥ 2 solutions
+ * 5. Reconstruct ghost via DFS + DP-guided pruning (near-instant)
+ *
+ * maxSum = sum of top normalDartLimit values (generous ceiling for
+ * playable targets reachable within normal mode).
  */
 function generateTarget(
   pool: PlayerSeason[],
   statKey: StatKey,
   rng: () => number,
-  dartLimit: number,
+  hardLimit: number,
+  normalDartLimit: number,
 ): { target: number; ghostPath: GhostStep[] } {
   const deduped = deduplicatePool(pool, statKey);
-  const topCandidates = deduped.slice(0, Math.min(20, deduped.length));
-  const allStatValues = new Set(deduped.map(d => d.statValue));
 
-  // Try up to 50 random combinations of 3-4 candidates
-  for (let attempt = 0; attempt < 50; attempt++) {
-    // Pick 3 or 4 candidates randomly from top 20
-    const pickCount = rng() < 0.5 ? 3 : 4;
-    const indices = new Set<number>();
-    while (indices.size < pickCount && indices.size < topCandidates.length) {
-      indices.add(Math.floor(rng() * topCandidates.length));
+  // Use full pool — DP is O(n×maxSum) and DP-guided DFS handles large pools
+  const candidates = deduped;
+  const values = candidates.map(d => d.statValue);
+
+  // Ghost target: find naturally short paths
+  const idealGhostK = Math.max(3, hardLimit - 2);
+
+  // maxSum = sum of top normalDartLimit values (upper bound for playable targets)
+  const topNValues = values.slice(0, Math.min(normalDartLimit, values.length));
+  const maxSum = topNValues.reduce((a, b) => a + b, 0);
+
+  if (maxSum === 0 || values.length < idealGhostK) {
+    const fallback = values.slice(0, 3).reduce((a, b) => a + b, 0) || 100;
+    return { target: fallback, ghostPath: [] };
+  }
+
+  // Build DP on full candidate pool
+  const { dp, count } = dpMinSubsetSum(values, maxSum);
+
+  // Target range: 25%-90% of maxSum for interesting gameplay
+  const minTarget = Math.max(2, Math.round(maxSum * 0.25));
+  const maxTarget = Math.round(maxSum * 0.90);
+  const allStatValues = new Set(values);
+
+  // Tier 1: idealGhostK with ≥ 2 distinct solutions
+  let targetCandidates: number[] = [];
+  for (let t = minTarget; t <= maxTarget; t++) {
+    if (dp[t] === idealGhostK && count[t] >= 2 && !allStatValues.has(t)) {
+      targetCandidates.push(t);
     }
-    if (indices.size < pickCount) continue;
-
-    const picked = Array.from(indices).map(i => topCandidates[i]);
-    const target = picked.reduce((sum, p) => sum + p.statValue, 0);
-
-    // Rule 1: no single dart should equal the target
-    if (allStatValues.has(target)) continue;
-
-    // Rule 2: at least 2 distinct paths must exist within dart limit
-    const paths = countPaths(target, deduped, dartLimit, 2);
-    if (paths < 2) continue;
-
-    // Valid target found! Compute ghost path (greedy best-fit)
-    const ghost = computeGhostPath(target, deduped, dartLimit);
-    return { target, ghostPath: ghost };
   }
 
-  // Fallback: modified top-5 sum scaled by 0.7-0.9
-  const top5sum = topCandidates.slice(0, 5).reduce((sum, p) => sum + p.statValue, 0);
-  const scale = 0.7 + rng() * 0.2; // 0.7 to 0.9
-  let fallbackTarget = Math.round(top5sum * scale);
-
-  // Ensure fallback target is not achievable by a single dart
-  while (allStatValues.has(fallbackTarget)) {
-    fallbackTarget++;
-  }
-
-  const ghost = computeGhostPath(fallbackTarget, deduped, dartLimit);
-  return { target: fallbackTarget, ghostPath: ghost };
-}
-
-/**
- * Greedy best-fit ghost path: pick the largest unused player that doesn't
- * overshoot the remaining target, until remainder is 0 or we run out of
- * candidates/darts.
- */
-function computeGhostPath(
-  target: number,
-  candidates: DeduplicatedPlayer[],
-  dartLimit: number,
-): GhostStep[] {
-  const path: GhostStep[] = [];
-  let remaining = target;
-  const usedPlayers = new Set<string>();
-
-  for (let dart = 0; dart < dartLimit && remaining > 0; dart++) {
-    // Find the best-fit: largest stat that doesn't overshoot
-    let bestFit: DeduplicatedPlayer | null = null;
-    for (const c of candidates) {
-      if (usedPlayers.has(c.playerID)) continue;
-      if (c.statValue <= remaining) {
-        bestFit = c;
-        break; // candidates sorted desc, so first fit is best
+  // Tier 2: idealGhostK + 1 (slightly longer ghost — still good)
+  if (targetCandidates.length < 5) {
+    const altK = idealGhostK + 1;
+    if (altK <= hardLimit) {
+      for (let t = minTarget; t <= maxTarget; t++) {
+        if (dp[t] === altK && count[t] >= 2 && !allStatValues.has(t)) {
+          targetCandidates.push(t);
+        }
       }
     }
-    if (!bestFit) break;
-
-    path.push({
-      name: bestFit.season.name,
-      yearID: bestFit.season.yearID,
-      teamID: bestFit.season.teamID,
-      statValue: bestFit.statValue,
-    });
-    remaining -= bestFit.statValue;
-    usedPlayers.add(bestFit.playerID);
   }
 
-  return path;
+  // Tier 3: idealGhostK - 1 (even shorter — impressive!)
+  if (targetCandidates.length < 5) {
+    const altK = idealGhostK - 1;
+    if (altK >= 2) {
+      for (let t = minTarget; t <= maxTarget; t++) {
+        if (dp[t] === altK && count[t] >= 2 && !allStatValues.has(t)) {
+          targetCandidates.push(t);
+        }
+      }
+    }
+  }
+
+  // Tier 4: any K from 2 to hardLimit
+  if (targetCandidates.length === 0) {
+    for (let t = minTarget; t <= maxTarget; t++) {
+      if (dp[t] >= 2 && dp[t] <= hardLimit && count[t] >= 2 && !allStatValues.has(t)) {
+        targetCandidates.push(t);
+      }
+    }
+  }
+
+  // Emergency: sum of top 3
+  if (targetCandidates.length === 0) {
+    const fallback = values.slice(0, 3).reduce((a, b) => a + b, 0);
+    const path = findPathOfK(candidates, fallback, Math.min(3, candidates.length), dp);
+    return {
+      target: fallback,
+      ghostPath: path ? path.map(toGhostStep) : [],
+    };
+  }
+
+  // Pick target using seeded RNG
+  const chosenTarget = targetCandidates[Math.floor(rng() * targetCandidates.length)];
+
+  // Ghost path: find true minimum-cardinality path with DP-guided DFS
+  const ghostK = dp[chosenTarget];
+  let path = findPathOfK(candidates, chosenTarget, ghostK, dp);
+
+  // Fallback: try ghostK + 1 if exact K path not found (extremely rare)
+  if (!path && ghostK < normalDartLimit) {
+    path = findPathOfK(candidates, chosenTarget, ghostK + 1, dp);
+  }
+
+  return {
+    target: chosenTarget,
+    ghostPath: path ? path.map(toGhostStep) : [],
+  };
 }
 
+function toGhostStep(p: DeduplicatedPlayer): GhostStep {
+  return {
+    name: p.season.name,
+    yearID: p.season.yearID,
+    teamID: p.season.teamID,
+    statValue: p.statValue,
+  };
+}
+
+// ── Build player pool from config ────────────────────────────────────────────
+function buildPool(allPlayers: PlayerSeason[], config: ChallengeConfig): PlayerSeason[] {
+  const isRange = config.seasonStart !== undefined;
+  const minStatValue = config.threshold ?? 1;
+  return isRange
+    ? allPlayers.filter(p =>
+        p.yearID >= config.seasonStart! &&
+        p.yearID <= (config.seasonEnd ?? config.seasonStart!) &&
+        getStatValue(p, config.statKey) >= minStatValue
+      )
+    : filterByStat(allPlayers, config.statKey, config.season!);
+}
+
+// ── Restriction validation gate ──────────────────────────────────────────────
+/**
+ * Validates that a restriction produces a solvable challenge.
+ * Gate checks:
+ * 1. Restricted pool has ≥ MIN_RESTRICTED_POOL deduped players
+ * 2. Target generation succeeds (not just fallback)
+ * Returns the restriction if valid, undefined if it should be dropped.
+ */
+function validateRestriction(
+  pool: PlayerSeason[],
+  restriction: Restriction,
+  statKey: StatKey,
+  dartLimit: number,
+  rng: () => number,
+): { valid: boolean; restrictedPool: PlayerSeason[] } {
+  const restrictedPool = filterByRestriction(pool, restriction);
+
+  // Gate 1: enough deduped players
+  const deduped = deduplicatePool(restrictedPool, statKey);
+  if (deduped.length < MIN_RESTRICTED_POOL) {
+    return { valid: false, restrictedPool };
+  }
+
+  // Gate 2: can we generate a validated target? (dry run)
+  const testRng = seedrandom(rng().toString());
+  const hardLimit = getDartLimit('hard', getStatDensity(statKey));
+  const result = generateTarget(restrictedPool, statKey, testRng, hardLimit, dartLimit);
+  if (result.ghostPath.length === 0) {
+    return { valid: false, restrictedPool };
+  }
+
+  return { valid: true, restrictedPool };
+}
+
+// ── Build description string ─────────────────────────────────────────────────
+function buildDescription(
+  config: ChallengeConfig,
+  restriction?: Restriction,
+): string {
+  const isRange = config.seasonStart !== undefined;
+  const seasonDisplay = isRange
+    ? `${config.seasonStart}–${config.seasonEnd}`
+    : String(config.season);
+
+  if (config.threshold && isRange) {
+    return `${seasonDisplay} MLB · ${config.threshold}+ ${config.statLabel} Seasons`;
+  } else if (restriction) {
+    return `${seasonDisplay} MLB · ${config.statLabel} (${restriction.label})`;
+  } else {
+    return `${seasonDisplay} MLB · ${config.statLabel}`;
+  }
+}
+
+// ── Main entry point ─────────────────────────────────────────────────────────
 export function getDailyChallenge(allPlayers: PlayerSeason[]): DailyChallenge {
   const today = new Date().toISOString().split('T')[0];
   const challengeNumber = Math.max(1, daysBetween(EPOCH_DATE, today));
@@ -319,61 +459,35 @@ export function getDailyChallenge(allPlayers: PlayerSeason[]): DailyChallenge {
     return CHALLENGE_CONFIGS[Math.floor(rng() * CHALLENGE_CONFIGS.length)];
   })();
 
-  // Filter players for this season/stat (single year or range)
-  const isRange = config.seasonStart !== undefined;
-  const minStatValue = config.threshold ?? 1; // threshold or just > 0
-  const pool = isRange
-    ? allPlayers.filter(p =>
-        p.yearID >= config.seasonStart! &&
-        p.yearID <= (config.seasonEnd ?? config.seasonStart!) &&
-        getStatValue(p, config.statKey) >= minStatValue
-      )
-    : filterByStat(allPlayers, config.statKey, config.season!);
+  const pool = buildPool(allPlayers, config);
 
-  // Restrictions only apply to single-year challenges
+  // Restriction: rotation-based, validated with gate checks
   const rotationIndex = challengeNumber % RESTRICTION_ROTATION.length;
-  const rawRestriction = isRange ? null : RESTRICTION_ROTATION[rotationIndex];
+  const rawRestriction = RESTRICTION_ROTATION[rotationIndex];
   let restriction: Restriction | undefined;
 
+  const rng = seedrandom(today + '-target');
+  const density = getStatDensity(config.statKey);
+  const dartLimit = getDartLimit('normal', density);
+
   if (rawRestriction) {
-    // Dynamic labels for league/division; static lookup for everything else
     const label = rawRestriction.type === 'league' || rawRestriction.type === 'division'
       ? `${rawRestriction.value} only`
       : RESTRICTION_LABELS[rawRestriction.type];
-    const restricted = filterByRestriction(pool, {
-      ...rawRestriction,
-      label,
-    });
-    if (restricted.length >= 5) {
-      restriction = { ...rawRestriction, label };
+    const candidateRestriction: Restriction = { ...rawRestriction, label };
+
+    const validation = validateRestriction(pool, candidateRestriction, config.statKey, dartLimit, rng);
+    if (validation.valid) {
+      restriction = candidateRestriction;
     }
   }
 
   const finalPool = restriction ? filterByRestriction(pool, restriction) : pool;
 
-  // Use deterministic RNG seeded with the date for target generation
-  const rng = seedrandom(today + '-target');
-  const density = getStatDensity(config.statKey);
-  const dartLimit = getDartLimit('normal', density); // Use Normal dart limit for validation
-  const { target, ghostPath } = generateTarget(finalPool, config.statKey, rng, dartLimit);
-
-  const seasonDisplay = isRange
-    ? `${config.seasonStart}–${config.seasonEnd}`
-    : String(config.season);
-
-  let desc: string;
-  if (config.threshold && isRange) {
-    // Threshold categories get a special description format
-    const thresholdLabel = config.statKey === 'AVG' ? `.${config.threshold}+`
-      : config.statKey === 'OBP' ? `.${config.threshold}+`
-      : config.statKey === 'OPS' ? `${(config.threshold / 1000).toFixed(3)}+`
-      : `${config.threshold}+`;
-    desc = `${seasonDisplay} MLB · ${thresholdLabel} ${config.statLabel}`;
-  } else if (restriction) {
-    desc = `${seasonDisplay} MLB · ${config.statLabel} (${restriction.label})`;
-  } else {
-    desc = `${seasonDisplay} MLB · ${config.statLabel}`;
-  }
+  // Generate target: desiredK = hard dart limit (best path = hard mode darts)
+  const targetRng = seedrandom(today + '-target-gen');
+  const hardLimit = getDartLimit('hard', density);
+  const { target, ghostPath } = generateTarget(finalPool, config.statKey, targetRng, hardLimit, dartLimit);
 
   const displaySeason = config.season ?? config.seasonEnd ?? config.seasonStart ?? 2025;
 
@@ -388,7 +502,38 @@ export function getDailyChallenge(allPlayers: PlayerSeason[]): DailyChallenge {
     statLabel: config.statLabel,
     targetScore: target,
     restriction,
-    description: desc,
+    description: buildDescription(config, restriction),
+    ghostPath,
+  };
+}
+
+// For dev playtesting: get challenge for a specific config index (0-29)
+export function getChallengeByIndex(allPlayers: PlayerSeason[], configIndex: number): DailyChallenge {
+  const config = CHALLENGE_CONFIGS[configIndex % CHALLENGE_CONFIGS.length];
+  const displaySeason = config.season ?? config.seasonEnd ?? config.seasonStart ?? 2025;
+
+  const pool = buildPool(allPlayers, config);
+
+  // Use config index as seed for deterministic but varied results per config
+  const density = getStatDensity(config.statKey);
+  const dartLimit = getDartLimit('normal', density);
+
+  // No restriction for dev cycling — keeps it simple for testing target quality
+  const targetRng = seedrandom(`dev-config-${configIndex}`);
+  const hardLimit = getDartLimit('hard', density);
+  const { target, ghostPath } = generateTarget(pool, config.statKey, targetRng, hardLimit, dartLimit);
+
+  return {
+    challengeNumber: configIndex + 1,
+    date: new Date().toISOString().split('T')[0],
+    sport: 'MLB',
+    season: displaySeason,
+    seasonStart: config.seasonStart,
+    seasonEnd: config.seasonEnd,
+    statKey: config.statKey,
+    statLabel: config.statLabel,
+    targetScore: target,
+    description: buildDescription(config),
     ghostPath,
   };
 }
@@ -399,44 +544,48 @@ export function getChallengeForDate(allPlayers: PlayerSeason[], dateStr: string)
   const rng = seedrandom(dateStr);
   const configIndex = Math.floor(rng() * CHALLENGE_CONFIGS.length);
   const config = CHALLENGE_CONFIGS[configIndex];
-  const season = config.season ?? config.seasonEnd ?? config.seasonStart ?? 2025;
-  const isRange = config.seasonStart !== undefined;
-  const minStatValue = config.threshold ?? 1;
-  const pool = isRange
-    ? allPlayers.filter(p => p.yearID >= config.seasonStart! && p.yearID <= (config.seasonEnd ?? config.seasonStart!) && getStatValue(p, config.statKey) >= minStatValue)
-    : filterByStat(allPlayers, config.statKey, season);
+  const displaySeason = config.season ?? config.seasonEnd ?? config.seasonStart ?? 2025;
 
-  const targetRng = seedrandom(dateStr + '-target');
+  const pool = buildPool(allPlayers, config);
+
+  // Restriction gate check for preview too
+  const rotationIndex = challengeNumber % RESTRICTION_ROTATION.length;
+  const rawRestriction = RESTRICTION_ROTATION[rotationIndex];
+  let restriction: Restriction | undefined;
+
   const density = getStatDensity(config.statKey);
   const dartLimit = getDartLimit('normal', density);
-  const { target, ghostPath } = generateTarget(pool, config.statKey, targetRng, dartLimit);
+  const restrictionRng = seedrandom(dateStr + '-restrict');
 
-  const seasonDisplay = isRange
-    ? `${config.seasonStart}–${config.seasonEnd}`
-    : String(season);
-
-  let desc: string;
-  if (config.threshold && isRange) {
-    const thresholdLabel = config.statKey === 'AVG' ? `.${config.threshold}+`
-      : config.statKey === 'OBP' ? `.${config.threshold}+`
-      : config.statKey === 'OPS' ? `${(config.threshold / 1000).toFixed(3)}+`
-      : `${config.threshold}+`;
-    desc = `${seasonDisplay} MLB · ${thresholdLabel} ${config.statLabel}`;
-  } else {
-    desc = `${seasonDisplay} MLB · ${config.statLabel}`;
+  if (rawRestriction) {
+    const label = rawRestriction.type === 'league' || rawRestriction.type === 'division'
+      ? `${rawRestriction.value} only`
+      : RESTRICTION_LABELS[rawRestriction.type];
+    const candidateRestriction: Restriction = { ...rawRestriction, label };
+    const validation = validateRestriction(pool, candidateRestriction, config.statKey, dartLimit, restrictionRng);
+    if (validation.valid) {
+      restriction = candidateRestriction;
+    }
   }
+
+  const finalPool = restriction ? filterByRestriction(pool, restriction) : pool;
+
+  const targetRng = seedrandom(dateStr + '-target');
+  const hardLimit = getDartLimit('hard', density);
+  const { target, ghostPath } = generateTarget(finalPool, config.statKey, targetRng, hardLimit, dartLimit);
 
   return {
     challengeNumber,
     date: dateStr,
     sport: 'MLB',
-    season,
+    season: displaySeason,
     seasonStart: config.seasonStart,
     seasonEnd: config.seasonEnd,
     statKey: config.statKey,
     statLabel: config.statLabel,
     targetScore: target,
-    description: desc,
+    restriction,
+    description: buildDescription(config, restriction),
     ghostPath,
   };
 }

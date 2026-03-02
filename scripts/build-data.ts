@@ -128,7 +128,7 @@ console.log(`🏆 ${wsWinners.size} World Series winner team-years`);
 type BatRow = {
   playerID: string; yearID: number; teams: string[];
   HR: number; RBI: number; H: number; R: number; SB: number; BB: number;
-  XBH: number; PA: number;
+  TB: number; PA: number;
   AB: number; HBP: number; SF: number; doubles: number; triples: number;
 };
 
@@ -161,7 +161,7 @@ for (const row of batting) {
     agg.R   += num(row.R);
     agg.SB  += num(row.SB);
     agg.BB  += bb;
-    agg.XBH += dbl + trp + hr;
+    agg.TB += num(row.H) + dbl + 2 * trp + 3 * hr;
     agg.PA  += pa;
     agg.AB  += ab;
     agg.HBP += hbp;
@@ -174,7 +174,7 @@ for (const row of batting) {
       yearID: year,
       teams: [gameTeam],
       HR: hr, RBI: num(row.RBI), H: num(row.H), R: num(row.R),
-      SB: num(row.SB), BB: bb, XBH: dbl + trp + hr, PA: pa,
+      SB: num(row.SB), BB: bb, TB: num(row.H) + dbl + 2 * trp + 3 * hr, PA: pa,
       AB: ab, HBP: hbp, SF: sf, doubles: dbl, triples: trp,
     });
   }
@@ -218,7 +218,7 @@ for (const row of pitching) {
 interface PlayerSeasonOut {
   id: string; playerID: string; name: string; teamID: string; yearID: number;
   role: 'batter' | 'pitcher';
-  HR: number; RBI: number; H: number; SB: number; BB: number; R: number; XBH: number;
+  HR: number; RBI: number; H: number; SB: number; BB: number; R: number; TB: number;
   W: number; SV: number; K: number;
   AVG: number; OBP: number; OPS: number;  // rate stats ×1000 (e.g., .356 → 356)
   isAllStar: boolean; careerAllStars: number; isHOF: boolean;
@@ -252,7 +252,7 @@ for (const [key, agg] of batAgg) {
     yearID: agg.yearID,
     role: 'batter',
     HR: agg.HR, RBI: agg.RBI, H: agg.H, SB: agg.SB,
-    BB: agg.BB, R: agg.R, XBH: agg.XBH,
+    BB: agg.BB, R: agg.R, TB: agg.TB,
     W: 0, SV: 0, K: 0,
     AVG: batAVG, OBP: batOBP, OPS: batOPS,
     isAllStar: allStarYears.has(asKey),
@@ -291,7 +291,7 @@ for (const [key, agg] of pitAgg) {
     teamID,
     yearID: agg.yearID,
     role: 'pitcher',
-    HR: 0, RBI: 0, H: 0, SB: 0, BB: 0, R: 0, XBH: 0,
+    HR: 0, RBI: 0, H: 0, SB: 0, BB: 0, R: 0, TB: 0,
     W: agg.W, SV: agg.SV, K: agg.K,
     AVG: 0, OBP: 0, OPS: 0,
     isAllStar: allStarYears.has(asKey),
