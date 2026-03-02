@@ -3,14 +3,14 @@
 // Produces spoiler-free emoji result string per planning doc spec
 // ─────────────────────────────────────────────────────────────────────────────
 
-import type { GameState, DartQuality } from '../types/game';
-import { getFinalScore, getDartsRemaining, getMultiplier } from './gameEngine';
+import type { GameState } from '../types/game';
+import { getFinalScore, getDartsRemaining, getMultiplier, getStarRating } from './gameEngine';
 
-const QUALITY_EMOJI: Record<DartQuality, string> = {
+// Record<string, string> for backward compat — old saves may have 'good'/'small'
+const QUALITY_EMOJI: Record<string, string> = {
   bullseye: '🎯',
   great:    '🟢',
-  good:     '🟡',
-  small:    '🔴',
+  normal:   '⚪',
   miss:     '❌',
 };
 
@@ -26,7 +26,8 @@ function formatDate(dateStr: string): string {
  *   🎯 Deadeye — Mar 1, 2026
  *   1998 MLB · Home Runs — Target: 291
  *
- *   🟢 → 🟡 → 🟢 → 🔴 → 🏳️
+ *   🟢 → ⚪ → 🟢 → ⚪ → 🏳️
+ *   ⭐⭐
  *
  *   Score: 42 | Normal
  */
@@ -55,7 +56,7 @@ export function generateShareText(state: GameState): string {
   // Dart emoji row with arrows — outcome emoji appended at end
   const dartEmojis = darts.map((d, i) => {
     if (status === 'bust' && i === darts.length - 1) return '💥';
-    return QUALITY_EMOJI[d.quality];
+    return QUALITY_EMOJI[d.quality] ?? '⚪';
   });
 
   // Append outcome emoji at end if not already shown in last dart
@@ -68,6 +69,12 @@ export function generateShareText(state: GameState): string {
   // 'perfect' (bullseye) and 'bust' are already represented in the last dart emoji
 
   lines.push(dartEmojis.join(' → ') || '–');
+
+  // Star rating line (only for completed games)
+  const stars = getStarRating(state);
+  if (stars > 0) {
+    lines.push('⭐'.repeat(stars));
+  }
 
   lines.push('');
 

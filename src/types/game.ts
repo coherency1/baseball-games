@@ -77,7 +77,7 @@ export interface DailyChallenge {
   ghostPath?: GhostStep[];   // pre-computed valid solution path for post-game display
 }
 
-export type DartQuality = 'bullseye' | 'great' | 'good' | 'small' | 'miss';
+export type DartQuality = 'bullseye' | 'great' | 'normal' | 'miss';
 
 export interface Dart {
   playerSeason: PlayerSeason;

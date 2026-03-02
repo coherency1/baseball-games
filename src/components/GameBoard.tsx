@@ -4,7 +4,7 @@ import type { PlayerSeason, GameState, DailyChallenge, GameMode } from '../types
 import type { PlayerEntry } from '../lib/playerSearch';
 import { buildPlayerIndex, buildFuseIndex } from '../lib/playerSearch';
 import { getDailyChallenge, DEV_OVERRIDE } from '../lib/dailyChallenge';
-import { createInitialState, throwDart, standGame, isGameOver, getUsedSeasonIds, getUsedPlayerIds, getDartsRemaining, getMultiplier, getFinalScore, getDartLimit, getStatDensity, validateSelection } from '../lib/gameEngine';
+import { createInitialState, throwDart, standGame, isGameOver, getUsedSeasonIds, getUsedPlayerIds, getDartsRemaining, getMultiplier, getFinalScore, getDartLimit, getStatDensity, validateSelection, getStarRating } from '../lib/gameEngine';
 import { Header } from './Header';
 import { ScoreDisplay } from './ScoreDisplay';
 import { DartRow } from './DartRow';
@@ -207,6 +207,7 @@ export function GameBoard() {
           mode={gameState.mode}
           multiplierPreview={gameState.mode !== 'easy' ? getMultiplier(getDartsRemaining(gameState)) : undefined}
           strikes={gameState.strikes}
+          starRating={gameOver ? getStarRating(gameState) : undefined}
         />
       </div>
 

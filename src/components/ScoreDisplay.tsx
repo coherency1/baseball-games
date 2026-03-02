@@ -9,6 +9,7 @@ interface ScoreDisplayProps {
   mode: GameMode;
   multiplierPreview?: number; // live multiplier for Normal/Hard
   strikes?: number;           // Easy mode: overshoot count (0–3)
+  starRating?: number;        // 0-3, only provided when game is over
 }
 
 const STATUS_CONFIG: Record<GameStatus, { label: string; color: string; bg: string }> = {
@@ -19,7 +20,7 @@ const STATUS_CONFIG: Record<GameStatus, { label: string; color: string; bg: stri
   out_of_darts: { label: 'Out of Darts',    color: 'text-orange-400', bg: 'bg-orange-900/30' },
 };
 
-export function ScoreDisplay({ targetScore, remainingScore, status, dartsThrown, dartLimit, mode, multiplierPreview, strikes = 0 }: ScoreDisplayProps) {
+export function ScoreDisplay({ targetScore, remainingScore, status, dartsThrown, dartLimit, mode, multiplierPreview, strikes = 0, starRating }: ScoreDisplayProps) {
   const cfg = STATUS_CONFIG[status];
   const progress = targetScore > 0 ? Math.max(0, (targetScore - remainingScore) / targetScore) : 0;
   const progressPct = Math.min(100, progress * 100);
@@ -53,6 +54,12 @@ export function ScoreDisplay({ targetScore, remainingScore, status, dartsThrown,
         {mode === 'easy' && strikes > 0 && status === 'playing' && (
           <p className="text-sm text-orange-400 font-semibold mt-1">
             ⚠️ {strikes}/3 strikes
+          </p>
+        )}
+        {/* Star rating (end-game only) */}
+        {starRating !== undefined && starRating > 0 && status !== 'playing' && (
+          <p className="text-2xl mt-2 tracking-wider">
+            {'⭐'.repeat(starRating)}{'☆'.repeat(3 - starRating)}
           </p>
         )}
       </div>

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import type { GameState, GhostStep } from '../types/game';
 import { generateShareText, copyToClipboard } from '../lib/shareText';
-import { getFinalScore, getDartsRemaining, getMultiplier } from '../lib/gameEngine';
+import { getFinalScore, getDartsRemaining, getMultiplier, getStarRating } from '../lib/gameEngine';
 
 interface ShareModalProps {
   gameState: GameState;
@@ -21,6 +21,7 @@ export function ShareModal({ gameState, onClose }: ShareModalProps) {
   const { status, remainingScore, challenge, darts } = gameState;
   const finalScore = getFinalScore(gameState);
   const modeLabel = gameState.mode === 'hard' ? 'Hard' : gameState.mode === 'normal' ? 'Normal' : 'Easy';
+  const starRating = getStarRating(gameState);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70">
@@ -40,6 +41,20 @@ export function ShareModal({ gameState, onClose }: ShareModalProps) {
             ✕
           </button>
         </div>
+
+        {/* Star rating */}
+        {starRating > 0 && (
+          <div className="px-6 py-4 text-center border-b border-slate-700">
+            <p className="text-4xl tracking-wider">
+              {'⭐'.repeat(starRating)}{'☆'.repeat(3 - starRating)}
+            </p>
+            <p className="text-xs text-slate-400 mt-1">
+              {starRating === 3 ? 'Optimal play!' :
+               starRating === 2 ? 'Near optimal' :
+               'Completed'}
+            </p>
+          </div>
+        )}
 
         {/* Stats */}
         <div className="px-6 py-4 space-y-3">

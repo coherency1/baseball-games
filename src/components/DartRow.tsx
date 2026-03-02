@@ -12,8 +12,7 @@ interface DartRowProps {
 const QUALITY_STYLES: Record<DartQuality, { border: string; badge: string; emoji: string }> = {
   bullseye: { border: 'border-green-400',  badge: 'bg-green-900/50 text-green-300', emoji: '🎯' },
   great:    { border: 'border-green-600',  badge: 'bg-green-900/40 text-green-400', emoji: '🟢' },
-  good:     { border: 'border-yellow-600', badge: 'bg-yellow-900/40 text-yellow-400', emoji: '🟡' },
-  small:    { border: 'border-red-800',    badge: 'bg-red-900/30 text-red-400', emoji: '🔴' },
+  normal:   { border: 'border-slate-600',  badge: 'bg-slate-800/40 text-slate-300', emoji: '⚪' },
   miss:     { border: 'border-orange-600', badge: 'bg-orange-900/40 text-orange-400', emoji: '❌' },
 };
 
@@ -22,7 +21,7 @@ export function DartRow({ dart, index, statLabel, isBust, isStrike, showTeam = t
     ? { border: 'border-red-500', badge: 'bg-red-900/50 text-red-300', emoji: '💥' }
     : isStrike
     ? QUALITY_STYLES.miss
-    : QUALITY_STYLES[dart.quality];
+    : (QUALITY_STYLES[dart.quality] ?? QUALITY_STYLES.normal);
 
   const isOvershoot = isBust || isStrike;
 
@@ -46,7 +45,7 @@ export function DartRow({ dart, index, statLabel, isBust, isStrike, showTeam = t
 
       {/* Stat value */}
       <div className="text-right shrink-0">
-        <p className={`text-sm font-bold ${styles.badge.includes('green') ? 'text-green-400' : styles.badge.includes('yellow') ? 'text-yellow-400' : styles.badge.includes('red') ? 'text-red-400' : styles.badge.includes('orange') ? 'text-orange-400' : 'text-white'}`}>
+        <p className={`text-sm font-bold ${styles.badge.includes('green') ? 'text-green-400' : styles.badge.includes('orange') ? 'text-orange-400' : 'text-slate-300'}`}>
           −{dart.statValue}
         </p>
         <p className="text-xs text-slate-500">{statLabel}</p>

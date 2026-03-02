@@ -62,12 +62,11 @@ export function getStatValue(season: PlayerSeason, statKey: string): number {
 }
 
 function getDartQuality(statValue: number, previousScore: number): DartQuality {
-  if (previousScore === 0) return 'small';
+  if (previousScore === 0) return 'normal';
   const pct = statValue / previousScore;
-  if (statValue === previousScore) return 'bullseye'; // would reach exactly 0
+  if (statValue === previousScore) return 'bullseye';
   if (pct > 0.5) return 'great';
-  if (pct >= 0.25) return 'good';
-  return 'small';
+  return 'normal';
 }
 
 export function throwDart(state: GameState, season: PlayerSeason): GameState {
@@ -228,6 +227,31 @@ export function getUsedSeasonIds(state: GameState): Set<string> {
 
 export function getUsedPlayerIds(state: GameState): Set<string> {
   return new Set(state.darts.map(d => d.playerSeason.playerID));
+}
+
+// ── Star rating based on ghost path efficiency ─────────────────────────────
+/**
+ * 3 stars: dart count ≤ ghost path length (matched or beat optimal)
+ * 2 stars: ghost path + 1 or +2
+ * 1 star:  completed without busting
+ * 0 stars: bust or still playing
+ */
+export function getStarRating(state: GameState): number {
+  if (state.status === 'bust' || state.status === 'playing') return 0;
+
+  const ghostPath = state.challenge.ghostPath;
+  if (!ghostPath || ghostPath.length === 0) return 1;
+
+  // Ghost path didn't reach target — can't compare, give 1 star for completion
+  const ghostTotal = ghostPath.reduce((sum, step) => sum + step.statValue, 0);
+  if (ghostTotal < state.challenge.targetScore) return 1;
+
+  const playerDarts = state.darts.length;
+  const ghostDarts = ghostPath.length;
+
+  if (playerDarts <= ghostDarts) return 3;
+  if (playerDarts <= ghostDarts + 2) return 2;
+  return 1;
 }
 
 // ── Selection validation with human-readable rejection reasons ───────────────
