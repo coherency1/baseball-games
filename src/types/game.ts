@@ -77,7 +77,7 @@ export interface DailyChallenge {
   ghostPath?: GhostStep[];   // pre-computed valid solution path for post-game display
 }
 
-export type DartQuality = 'bullseye' | 'great' | 'good' | 'small';
+export type DartQuality = 'bullseye' | 'great' | 'good' | 'small' | 'miss';
 
 export interface Dart {
   playerSeason: PlayerSeason;
@@ -92,8 +92,9 @@ export type GameStatus = 'playing' | 'bust' | 'perfect' | 'standing' | 'out_of_d
 export interface GameState {
   challenge: DailyChallenge;
   darts: Dart[];
-  remainingScore: number;    // Math.abs in easy mode when negative
+  remainingScore: number;    // distance from 0 (always positive)
   status: GameStatus;
   mode: GameMode;
   dartLimit: number;         // Infinity for Easy, 5-10 for Normal/Hard
+  strikes: number;           // Easy mode: overshoot count (3 = bust)
 }

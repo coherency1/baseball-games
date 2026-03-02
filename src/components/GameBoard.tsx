@@ -145,7 +145,7 @@ export function GameBoard() {
     if (gameState) {
       const density = getStatDensity(gameState.challenge.statKey);
       const dartLimit = getDartLimit(newMode, density);
-      const updated = { ...gameState, mode: newMode, dartLimit };
+      const updated = { ...gameState, mode: newMode, dartLimit, strikes: 0 };
       setGameState(updated);
     }
   }
@@ -208,6 +208,7 @@ export function GameBoard() {
           dartLimit={gameState.dartLimit}
           mode={gameState.mode}
           multiplierPreview={gameState.mode !== 'easy' ? getMultiplier(getDartsRemaining(gameState)) : undefined}
+          strikes={gameState.strikes}
         />
       </div>
 
@@ -215,16 +216,23 @@ export function GameBoard() {
       {gameState.darts.length > 0 && (
         <div className="px-4 mt-4 space-y-2">
           <p className="text-xs uppercase tracking-widest text-slate-500 mb-2">Darts thrown</p>
-          {gameState.darts.map((dart, i) => (
-            <DartRow
-              key={dart.playerSeason.id}
-              dart={dart}
-              index={i}
-              statLabel={gameState.challenge.statLabel}
-              isBust={gameState.status === 'bust' && i === gameState.darts.length - 1}
-              showTeam={showTeams}
-            />
-          ))}
+          {gameState.darts.map((dart, i) => {
+            const isLastDart = i === gameState.darts.length - 1;
+            const isBust = gameState.status === 'bust' && isLastDart;
+            // Strike = miss dart that didn't end the game (Easy mode, not the bust dart)
+            const isStrike = dart.quality === 'miss' && !isBust;
+            return (
+              <DartRow
+                key={dart.playerSeason.id}
+                dart={dart}
+                index={i}
+                statLabel={gameState.challenge.statLabel}
+                isBust={isBust}
+                isStrike={isStrike}
+                showTeam={showTeams}
+              />
+            );
+          })}
         </div>
       )}
 

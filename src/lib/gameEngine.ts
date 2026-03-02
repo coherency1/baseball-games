@@ -53,6 +53,7 @@ export function createInitialState(challenge: DailyChallenge, mode: GameMode): G
     status: 'playing',
     mode,
     dartLimit,
+    strikes: 0,
   };
 }
 
@@ -113,8 +114,15 @@ export function throwDart(state: GameState, season: PlayerSeason): GameState {
   const previousScore = state.remainingScore;
   const rawNewScore = previousScore - statValue;
 
-  const quality: DartQuality =
-    rawNewScore === 0 ? 'bullseye' : getDartQuality(statValue, previousScore);
+  // Determine dart quality
+  let quality: DartQuality;
+  if (rawNewScore === 0) {
+    quality = 'bullseye';
+  } else if (rawNewScore < 0) {
+    quality = 'miss'; // overshoot
+  } else {
+    quality = getDartQuality(statValue, previousScore);
+  }
 
   const dart: Dart = {
     playerSeason: season,
@@ -124,20 +132,9 @@ export function throwDart(state: GameState, season: PlayerSeason): GameState {
     quality,
   };
 
-  // Normal/Hard: going negative = bust; score stays at previousScore (real darts rules)
-  if (rawNewScore < 0 && state.mode !== 'easy') {
-    return {
-      ...state,
-      darts: [...state.darts, dart],
-      remainingScore: previousScore,
-      status: 'bust',
-    };
-  }
-
-  const newScore = Math.abs(rawNewScore); // easy mode: treat as distance from 0
   const newDarts = [...state.darts, dart];
 
-  // Check for bullseye
+  // ── Bullseye (exact 0) — all modes ──
   if (rawNewScore === 0) {
     return {
       ...state,
@@ -146,6 +143,42 @@ export function throwDart(state: GameState, season: PlayerSeason): GameState {
       status: 'perfect',
     };
   }
+
+  // ── Overshoot (went negative) ──
+  if (rawNewScore < 0) {
+    // Normal/Hard: instant bust
+    if (state.mode !== 'easy') {
+      return {
+        ...state,
+        darts: newDarts,
+        remainingScore: previousScore,
+        status: 'bust',
+      };
+    }
+
+    // Easy: strike system — 3 strikes = bust
+    const newStrikes = state.strikes + 1;
+    if (newStrikes >= 3) {
+      return {
+        ...state,
+        darts: newDarts,
+        remainingScore: previousScore,
+        strikes: newStrikes,
+        status: 'bust',
+      };
+    }
+    // Strike but keep playing — score stays, dart is wasted
+    return {
+      ...state,
+      darts: newDarts,
+      remainingScore: previousScore, // score doesn't change
+      strikes: newStrikes,
+      status: 'playing',
+    };
+  }
+
+  // ── Normal positive score ──
+  const newScore = rawNewScore; // always positive here
 
   // Check if all darts exhausted (Normal/Hard only)
   if (state.dartLimit !== Infinity && newDarts.length >= state.dartLimit) {

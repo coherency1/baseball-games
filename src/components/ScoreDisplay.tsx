@@ -8,6 +8,7 @@ interface ScoreDisplayProps {
   dartLimit: number;
   mode: GameMode;
   multiplierPreview?: number; // live multiplier for Normal/Hard
+  strikes?: number;           // Easy mode: overshoot count (0–3)
 }
 
 const STATUS_CONFIG: Record<GameStatus, { label: string; color: string; bg: string }> = {
@@ -18,7 +19,7 @@ const STATUS_CONFIG: Record<GameStatus, { label: string; color: string; bg: stri
   out_of_darts: { label: 'Out of Darts',    color: 'text-orange-400', bg: 'bg-orange-900/30' },
 };
 
-export function ScoreDisplay({ targetScore, remainingScore, status, dartsThrown, dartLimit, mode, multiplierPreview }: ScoreDisplayProps) {
+export function ScoreDisplay({ targetScore, remainingScore, status, dartsThrown, dartLimit, mode, multiplierPreview, strikes = 0 }: ScoreDisplayProps) {
   const cfg = STATUS_CONFIG[status];
   const progress = targetScore > 0 ? Math.max(0, (targetScore - remainingScore) / targetScore) : 0;
   const progressPct = Math.min(100, progress * 100);
@@ -48,6 +49,12 @@ export function ScoreDisplay({ targetScore, remainingScore, status, dartsThrown,
             </span>
           )}
         </p>
+        {/* Strike counter for Easy mode */}
+        {mode === 'easy' && strikes > 0 && status === 'playing' && (
+          <p className="text-sm text-orange-400 font-semibold mt-1">
+            ⚠️ {strikes}/3 strikes
+          </p>
+        )}
       </div>
 
       {/* Progress bar */}

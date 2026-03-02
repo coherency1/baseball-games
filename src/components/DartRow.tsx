@@ -5,6 +5,7 @@ interface DartRowProps {
   index: number;
   statLabel: string;
   isBust: boolean;
+  isStrike: boolean;   // Easy mode: overshoot that didn't end game
   showTeam?: boolean;  // false in Hard mode
 }
 
@@ -13,12 +14,17 @@ const QUALITY_STYLES: Record<DartQuality, { border: string; badge: string; emoji
   great:    { border: 'border-green-600',  badge: 'bg-green-900/40 text-green-400', emoji: '🟢' },
   good:     { border: 'border-yellow-600', badge: 'bg-yellow-900/40 text-yellow-400', emoji: '🟡' },
   small:    { border: 'border-red-800',    badge: 'bg-red-900/30 text-red-400', emoji: '🔴' },
+  miss:     { border: 'border-orange-600', badge: 'bg-orange-900/40 text-orange-400', emoji: '❌' },
 };
 
-export function DartRow({ dart, index, statLabel, isBust, showTeam = true }: DartRowProps) {
+export function DartRow({ dart, index, statLabel, isBust, isStrike, showTeam = true }: DartRowProps) {
   const styles = isBust
     ? { border: 'border-red-500', badge: 'bg-red-900/50 text-red-300', emoji: '💥' }
+    : isStrike
+    ? QUALITY_STYLES.miss
     : QUALITY_STYLES[dart.quality];
+
+  const isOvershoot = isBust || isStrike;
 
   return (
     <div className={`flex items-center gap-3 px-4 py-3 rounded-xl border ${styles.border} bg-slate-800/50`}>
@@ -40,7 +46,7 @@ export function DartRow({ dart, index, statLabel, isBust, showTeam = true }: Dar
 
       {/* Stat value */}
       <div className="text-right shrink-0">
-        <p className={`text-sm font-bold ${styles.badge.includes('green') ? 'text-green-400' : styles.badge.includes('yellow') ? 'text-yellow-400' : styles.badge.includes('red') ? 'text-red-400' : 'text-white'}`}>
+        <p className={`text-sm font-bold ${styles.badge.includes('green') ? 'text-green-400' : styles.badge.includes('yellow') ? 'text-yellow-400' : styles.badge.includes('red') ? 'text-red-400' : styles.badge.includes('orange') ? 'text-orange-400' : 'text-white'}`}>
           −{dart.statValue}
         </p>
         <p className="text-xs text-slate-500">{statLabel}</p>
@@ -49,9 +55,9 @@ export function DartRow({ dart, index, statLabel, isBust, showTeam = true }: Dar
       {/* Score change */}
       <div className={`text-right shrink-0 px-2 py-1 rounded-lg ${styles.badge}`}>
         <p className="text-xs text-slate-400 leading-none">{dart.previousScore}</p>
-        {isBust
+        {isOvershoot
           ? <p className="text-sm font-black leading-none">+{Math.abs(dart.newScore)} over</p>
-          : <p className="text-sm font-black leading-none">→ {Math.abs(dart.newScore)}</p>
+          : <p className="text-sm font-black leading-none">→ {dart.newScore}</p>
         }
       </div>
     </div>

@@ -11,6 +11,7 @@ const QUALITY_EMOJI: Record<DartQuality, string> = {
   great:    '🟢',
   good:     '🟡',
   small:    '🔴',
+  miss:     '❌',
 };
 
 /** Format a date like "Mar 1, 2026" */
