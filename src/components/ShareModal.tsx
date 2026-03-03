@@ -107,9 +107,27 @@ export function ShareModal({ gameState, allSeasons, onClose }: ShareModalProps) 
 
         {/* Stats */}
         <div className="px-6 py-5 space-y-3.5">
-          <div className="flex justify-between items-center">
-            <span className="text-slate-400 text-[11px] font-bold uppercase tracking-widest">Challenge</span>
-            <span className="text-slate-200 font-semibold text-sm text-right">{challenge.description}</span>
+          <div className="flex justify-between items-start gap-4">
+            <span className="text-slate-400 text-[11px] font-bold uppercase tracking-widest mt-1">Challenge</span>
+            <div className="flex flex-col items-end gap-1">
+              <span className="text-slate-200 font-semibold text-sm text-right">
+                {challenge.seasonStart ? `${challenge.seasonStart}-${challenge.seasonEnd}` : challenge.season} MLB · {challenge.statLabel}
+              </span>
+              {(challenge.threshold || challenge.restriction) && (
+                <div className="flex flex-wrap gap-1 justify-end">
+                  {challenge.threshold && (
+                    <span className="text-[10px] uppercase font-bold tracking-wider text-sky-400 bg-sky-900/40 border border-sky-500/30 px-1.5 py-0.5 rounded">
+                      {challenge.threshold}+ {challenge.thresholdStatLabel || challenge.statLabel}
+                    </span>
+                  )}
+                  {challenge.restriction && (
+                    <span className="text-[10px] uppercase font-bold tracking-wider text-amber-400 bg-amber-500/10 border border-amber-500/30 px-1.5 py-0.5 rounded shadow-[0_0_8px_rgba(245,158,11,0.1)]">
+                      ⚡ {challenge.restriction.label}
+                    </span>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
           <div className="flex justify-between items-center">
             <span className="text-slate-400 text-[11px] font-bold uppercase tracking-widest">Target</span>

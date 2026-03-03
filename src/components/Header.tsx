@@ -31,16 +31,31 @@ export function Header({ challenge, mode, onChangeMode }: HeaderProps) {
           </div>
         </div>
 
-        {/* Challenge description */}
+        {/* Challenge descriptive badges */}
         {challenge && (
-          <div className="text-right flex-1 mx-3">
-            <p className="text-sm font-semibold text-slate-200">
-              {challenge.description}
-            </p>
+          <div className="flex-1 mx-3 flex flex-wrap gap-1.5 justify-end items-center">
+            {/* Era Badge */}
+            <div className="px-2 py-0.5 rounded border border-slate-700 bg-slate-800/50 text-slate-300 text-[10px] uppercase font-bold tracking-wider">
+              {challenge.seasonStart ? `${challenge.seasonStart}-${challenge.seasonEnd}` : challenge.season}
+            </div>
+            
+            {/* Target Badge */}
+            <div className="px-2 py-0.5 rounded border border-rose-500/30 bg-rose-500/10 text-rose-400 text-[10px] uppercase font-bold tracking-wider flex items-center gap-1 shadow-[0_0_8px_rgba(244,63,94,0.1)]">
+              Score: {challenge.statLabel}
+            </div>
+
+            {/* Threshold Filter Badge */}
+            {challenge.threshold && (
+              <div className="px-2 py-0.5 rounded border border-sky-500/30 bg-sky-900/40 text-sky-400 text-[10px] uppercase font-bold tracking-wider flex items-center gap-1">
+                Filter: {challenge.threshold}+ {challenge.thresholdStatLabel || challenge.statLabel}
+              </div>
+            )}
+
+            {/* Restriction Badge */}
             {challenge.restriction && (
-              <p className="text-xs text-amber-400 mt-0.5">
+              <div className="px-2 py-0.5 rounded border border-amber-500/30 bg-amber-500/10 text-amber-400 text-[10px] uppercase font-bold tracking-wider flex items-center gap-1 shadow-[0_0_8px_rgba(245,158,11,0.1)]">
                 ⚡ {challenge.restriction.label}
-              </p>
+              </div>
             )}
           </div>
         )}

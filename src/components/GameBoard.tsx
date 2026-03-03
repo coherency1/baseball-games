@@ -276,13 +276,27 @@ export function GameBoard() {
             )}
             {/* How-to hint */}
             <p className="text-center text-xs text-slate-500 px-4">
-              Search a player from{' '}
-              <strong className="text-slate-400">
-                {gameState.challenge.seasonStart
-                  ? `${gameState.challenge.seasonStart}–${gameState.challenge.seasonEnd}`
-                  : gameState.challenge.season}
-              </strong>{' '}
-              to subtract their {gameState.challenge.statLabel}.
+              {gameState.challenge.threshold ? (
+                <>
+                  Search a player from{' '}
+                  <strong className="text-slate-400">
+                    {gameState.challenge.seasonStart
+                      ? `${gameState.challenge.seasonStart}–${gameState.challenge.seasonEnd}`
+                      : gameState.challenge.season}
+                  </strong>{' '}
+                  with <strong className="text-sky-400">{gameState.challenge.threshold}+ {gameState.challenge.thresholdStatLabel || gameState.challenge.statLabel}</strong> to subtract their {gameState.challenge.statLabel}.
+                </>
+              ) : (
+                <>
+                  Search a player from{' '}
+                  <strong className="text-slate-400">
+                    {gameState.challenge.seasonStart
+                      ? `${gameState.challenge.seasonStart}–${gameState.challenge.seasonEnd}`
+                      : gameState.challenge.season}
+                  </strong>{' '}
+                  to subtract their {gameState.challenge.statLabel}.
+                </>
+              )}
             </p>
             {/* Restriction reminder */}
             {gameState.challenge.restriction && (

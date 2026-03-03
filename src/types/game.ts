@@ -50,9 +50,11 @@ export interface ChallengeConfig {
   season?: number;           // single year (mutually exclusive with range)
   seasonStart?: number;      // range start
   seasonEnd?: number;        // range end
-  statKey: StatKey;
+  statKey: StatKey;          // stat used for scoring
   statLabel: string;
   threshold?: number;        // minimum stat value to qualify (e.g., 40 for 40+ HR)
+  thresholdStatKey?: StatKey; // optional decoupled stat for the threshold filter (e.g. filter by 40+ HR, score by RBI)
+  thresholdStatLabel?: string;
 }
 
 export interface GhostStep {
@@ -73,7 +75,10 @@ export interface DailyChallenge {
   statLabel: string;
   targetScore: number;       // validated target (not trivially solvable)
   restriction?: Restriction;
-  description: string;       // "1998 MLB · Home Runs" or "2010–2025 MLB · Strikeouts"
+  description: string;       // "1998 MLB · Home Runs" or "2010–2025 MLB · Strikeouts" (Legacy share text)
+  threshold?: number;        // e.g. 40
+  thresholdStatKey?: StatKey; // e.g. "HR"
+  thresholdStatLabel?: string; // e.g. "Home Runs"
   ghostPath?: GhostStep[];   // pre-computed valid solution path for post-game display
 }
 

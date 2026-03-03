@@ -27,35 +27,35 @@ export const CHALLENGE_CONFIGS: ChallengeConfig[] = [
   { season: 1985, statKey: 'SB',  statLabel: 'Stolen Bases' },       // Henderson/Coleman
   { season: 2023, statKey: 'SB',  statLabel: 'Stolen Bases' },       // New SB rules explosion
   { season: 2004, statKey: 'H',   statLabel: 'Hits' },               // Ichiro 262 hits
-  { season: 1968, statKey: 'K',   statLabel: 'Strikeouts (Pitching)' }, // Year of the Pitcher
+  { season: 1968, statKey: 'K',   statLabel: 'Strikeouts' }, // Year of the Pitcher
   { season: 1930, statKey: 'RBI', statLabel: 'RBI' },                // Hack Wilson 191 RBI
 
   // ── Era Ranges (13) ──────────────────────────────────────────────────────
   { seasonStart: 2020, seasonEnd: 2025, statKey: 'HR',  statLabel: 'Home Runs' },          // Modern Mashers
   { seasonStart: 2020, seasonEnd: 2025, statKey: 'SB',  statLabel: 'Stolen Bases' },       // Modern Speed
-  { seasonStart: 2020, seasonEnd: 2025, statKey: 'K',   statLabel: 'Strikeouts (Pitching)' }, // Modern Strikeout Era
+  { seasonStart: 2020, seasonEnd: 2025, statKey: 'K',   statLabel: 'Strikeouts' }, // Modern Strikeout Era
   { seasonStart: 2020, seasonEnd: 2025, statKey: 'RBI', statLabel: 'RBI' },                // Modern Run Production
-  { seasonStart: 2010, seasonEnd: 2019, statKey: 'K',   statLabel: 'Strikeouts (Pitching)' }, // Strikeout Surge
+  { seasonStart: 2010, seasonEnd: 2019, statKey: 'K',   statLabel: 'Strikeouts' }, // Strikeout Surge
   { seasonStart: 2010, seasonEnd: 2019, statKey: 'SV',  statLabel: 'Saves' },              // Modern Closers
   { seasonStart: 2000, seasonEnd: 2009, statKey: 'SB',  statLabel: 'Stolen Bases' },       // 2000s Speed
   { seasonStart: 1980, seasonEnd: 1999, statKey: 'SB',  statLabel: 'Stolen Bases' },       // 80s-90s Baserunning
-  { seasonStart: 1960, seasonEnd: 1980, statKey: 'K',   statLabel: 'Strikeouts (Pitching)' }, // Classic Power Pitching
+  { seasonStart: 1960, seasonEnd: 1980, statKey: 'K',   statLabel: 'Strikeouts' }, // Classic Power Pitching
   { seasonStart: 2000, seasonEnd: 2025, statKey: 'BB',  statLabel: 'Walks' },              // Moneyball Walks
   { seasonStart: 2010, seasonEnd: 2025, statKey: 'TB',  statLabel: 'Total Bases' },        // Total Base Leaders
   { seasonStart: 1990, seasonEnd: 2009, statKey: 'R',   statLabel: 'Runs' },               // Offensive Explosion Era
   { seasonStart: 1950, seasonEnd: 1979, statKey: 'HR',  statLabel: 'Home Runs' },          // Classic Era Power
 
-  // ── Threshold Ranges (9) ─────────────────────────────────────────────────
-  // statLabel = clean stat name (used in search prompt); description builder adds threshold prefix
-  { seasonStart: 1950, seasonEnd: 2025, statKey: 'HR',  statLabel: 'Home Runs',              threshold: 40 },
-  { seasonStart: 1950, seasonEnd: 2025, statKey: 'RBI', statLabel: 'RBI',                    threshold: 100 },
-  { seasonStart: 1950, seasonEnd: 2025, statKey: 'H',   statLabel: 'Hits',                   threshold: 200 },
-  { seasonStart: 1950, seasonEnd: 2025, statKey: 'SB',  statLabel: 'Stolen Bases',           threshold: 50 },
-  { seasonStart: 1950, seasonEnd: 2025, statKey: 'SV',  statLabel: 'Saves',                  threshold: 40 },
-  { seasonStart: 1950, seasonEnd: 2025, statKey: 'K',   statLabel: 'Strikeouts (Pitching)',   threshold: 200 },
-  { seasonStart: 1950, seasonEnd: 2025, statKey: 'BB',  statLabel: 'Walks',                  threshold: 100 },
-  { seasonStart: 1950, seasonEnd: 2025, statKey: 'TB',  statLabel: 'Total Bases',            threshold: 300 },
-  { seasonStart: 1950, seasonEnd: 2025, statKey: 'R',   statLabel: 'Runs',                   threshold: 100 },
+  // ── Mixed Threshold Ranges (9) ───────────────────────────────────────────
+  // Challenges where the scoring stat differs from the qualifying threshold stat
+  { seasonStart: 1950, seasonEnd: 2025, statKey: 'RBI', statLabel: 'RBI',                   threshold: 40,  thresholdStatKey: 'HR', thresholdStatLabel: 'Home Runs' },
+  { seasonStart: 1950, seasonEnd: 2025, statKey: 'BB',  statLabel: 'Walks',                 threshold: 200, thresholdStatKey: 'H',  thresholdStatLabel: 'Hits' },
+  { seasonStart: 1950, seasonEnd: 2025, statKey: 'W',  statLabel: 'Wins',                  threshold: 200, thresholdStatKey: 'K',  thresholdStatLabel: 'Strikeouts' },
+  { seasonStart: 1950, seasonEnd: 2025, statKey: 'R',   statLabel: 'Runs',                  threshold: 100, thresholdStatKey: 'BB', thresholdStatLabel: 'Walks' },
+  { seasonStart: 1950, seasonEnd: 2025, statKey: 'H',   statLabel: 'Hits',                  threshold: 50,  thresholdStatKey: 'SB', thresholdStatLabel: 'Stolen Bases' },
+  { seasonStart: 1950, seasonEnd: 2025, statKey: 'HR',  statLabel: 'Home Runs',             threshold: 100, thresholdStatKey: 'R',  thresholdStatLabel: 'Runs' },
+  { seasonStart: 1950, seasonEnd: 2025, statKey: 'SB',  statLabel: 'Stolen Bases',          threshold: 100, thresholdStatKey: 'RBI',thresholdStatLabel: 'RBI' },
+  { seasonStart: 1950, seasonEnd: 2025, statKey: 'TB',  statLabel: 'Total Bases',           threshold: 40,  thresholdStatKey: 'HR', thresholdStatLabel: 'Home Runs' },
+  { seasonStart: 1950, seasonEnd: 2025, statKey: 'K',   statLabel: 'Strikeouts',  threshold: 40,  thresholdStatKey: 'SV', thresholdStatLabel: 'Saves' },
 ];
 
 // ── Restriction rotation ─────────────────────────────────────────────────────
@@ -386,11 +386,14 @@ function toGhostStep(p: DeduplicatedPlayer): GhostStep {
 function buildPool(allPlayers: PlayerSeason[], config: ChallengeConfig): PlayerSeason[] {
   const isRange = config.seasonStart !== undefined;
   const minStatValue = config.threshold ?? 1;
+  const filterStatKey = config.thresholdStatKey ?? config.statKey;
+  
   return isRange
     ? allPlayers.filter(p =>
         p.yearID >= config.seasonStart! &&
         p.yearID <= (config.seasonEnd ?? config.seasonStart!) &&
-        getStatValue(p, config.statKey) >= minStatValue
+        getStatValue(p, filterStatKey) >= minStatValue &&
+        getStatValue(p, config.statKey) > 0 // Ensure they have >0 of the target stat
       )
     : filterByStat(allPlayers, config.statKey, config.season!);
 }
@@ -430,6 +433,7 @@ function validateRestriction(
 }
 
 // ── Build description string ─────────────────────────────────────────────────
+// This is now purely used as a clean fallback for shareText.ts
 function buildDescription(
   config: ChallengeConfig,
   restriction?: Restriction,
@@ -439,9 +443,7 @@ function buildDescription(
     ? `${config.seasonStart}–${config.seasonEnd}`
     : String(config.season);
 
-  if (config.threshold && isRange) {
-    return `${seasonDisplay} MLB · ${config.threshold}+ ${config.statLabel} Seasons`;
-  } else if (restriction) {
+  if (restriction) {
     return `${seasonDisplay} MLB · ${config.statLabel} (${restriction.label})`;
   } else {
     return `${seasonDisplay} MLB · ${config.statLabel}`;
@@ -534,6 +536,9 @@ export function getChallengeByIndex(allPlayers: PlayerSeason[], configIndex: num
     statLabel: config.statLabel,
     targetScore: target,
     description: buildDescription(config),
+    threshold: config.threshold,
+    thresholdStatKey: config.thresholdStatKey,
+    thresholdStatLabel: config.thresholdStatLabel,
     ghostPath,
   };
 }
