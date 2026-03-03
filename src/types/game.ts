@@ -89,6 +89,8 @@ export interface Dart {
 
 export type GameStatus = 'playing' | 'bust' | 'perfect' | 'standing' | 'out_of_darts';
 
+export type SecretBadge = 'scenic_route' | 'franchise_bonus';
+
 export interface GameState {
   challenge: DailyChallenge;
   darts: Dart[];
@@ -97,4 +99,6 @@ export interface GameState {
   mode: GameMode;
   dartLimit: number;         // Infinity for Easy, 5-10 for Normal/Hard
   strikes: number;           // Easy mode: overshoot count (3 = bust)
+  starRating?: number;       // 0-5 stars
+  badges?: SecretBadge[];    // awarded at game over
 }

@@ -3,7 +3,7 @@
 // Core scoring logic, bust detection, dart quality classification
 // ─────────────────────────────────────────────────────────────────────────────
 
-import type { GameState, Dart, DartQuality, PlayerSeason, DailyChallenge, GameMode, StatDensity, StatKey } from '../types/game';
+import type { GameState, Dart, DartQuality, PlayerSeason, DailyChallenge, GameMode, StatDensity, StatKey, SecretBadge } from '../types/game';
 import { MLB_TEAMS } from '../data/teams';
 
 // ── Stat density classification (determines dart limits) ─────────────────────
@@ -150,7 +150,7 @@ export function throwDart(state: GameState, season: PlayerSeason): GameState {
       return {
         ...state,
         darts: newDarts,
-        remainingScore: previousScore,
+        remainingScore: rawNewScore, // Pass the negative busted amount
         status: 'bust',
       };
     }
@@ -161,7 +161,7 @@ export function throwDart(state: GameState, season: PlayerSeason): GameState {
       return {
         ...state,
         darts: newDarts,
-        remainingScore: previousScore,
+        remainingScore: rawNewScore, // Pass the negative busted amount on final strike
         strikes: newStrikes,
         status: 'bust',
       };
@@ -189,17 +189,31 @@ export function throwDart(state: GameState, season: PlayerSeason): GameState {
     };
   }
 
-  return {
+  const nextState: GameState = {
     ...state,
     darts: newDarts,
     remainingScore: newScore,
     status: 'playing',
   };
+
+  if (isGameOver(nextState)) {
+    const achievements = evaluatePostGameAchievements(nextState);
+    nextState.starRating = achievements.stars;
+    nextState.badges = achievements.badges;
+  }
+
+  return nextState;
 }
 
 export function standGame(state: GameState): GameState {
   if (state.status !== 'playing') return state;
-  return { ...state, status: 'standing' };
+  const nextState: GameState = { ...state, status: 'standing' };
+  
+  const achievements = evaluatePostGameAchievements(nextState);
+  nextState.starRating = achievements.stars;
+  nextState.badges = achievements.badges;
+
+  return nextState;
 }
 
 export function isGameOver(state: GameState): boolean {
@@ -222,38 +236,66 @@ export function getUsedPlayerIds(state: GameState): Set<string> {
   return new Set(state.darts.map(d => d.playerSeason.playerID));
 }
 
-// ── Star rating: distance-first, dart efficiency as bonus ────────────────────
+// ── Scoring & Post-Game Assessment ──────────────────────────────────────────
+
 /**
- * 3 stars: bullseye (distance = 0)
- * 2 stars: distance ≤ 10% of target,
- *          OR ≤ 20% AND darts ≤ ghost path length (efficiency bonus)
- * 1 star:  completed without busting
- * 0 stars: bust or still playing
+ * Calculates the final star rating and any earned secret badges for a completed game.
+ * 3 Stars: Distance <= 5% of target
+ * 4 Stars: Exact Bullseye (distance 0)
+ * 5 Stars: Exact Bullseye AND darts used matches the optimal Ghost Path length.
  */
-export function getStarRating(state: GameState): number {
-  if (state.status === 'bust' || state.status === 'playing') return 0;
+export function evaluatePostGameAchievements(state: GameState): { stars: number; badges: SecretBadge[] } {
+  // If forfeited or busted, 0 stars and no badges
+  if (state.status === 'playing' || state.status === 'bust') return { stars: 0, badges: [] };
 
-  // 3 stars: bullseye only
-  if (state.status === 'perfect') return 3;
+  const { targetScore } = state.challenge;
+  const { remainingScore, darts, mode } = state;
+  const ghostLength = state.challenge.ghostPath?.length ?? 99;
 
-  const target = state.challenge.targetScore;
-  if (target <= 0) return 1;
+  let stars = 0;
+  const badges: SecretBadge[] = [];
 
-  const distance = state.remainingScore;
-  const pct = distance / target;
+  // Determine Stars
+  const pctOff = remainingScore / targetScore;
 
-  // 2 stars: within 10% of target
-  if (pct <= 0.10) return 2;
-
-  // 2 stars (efficiency bonus): within 20% AND used ≤ ghost path darts
-  const ghostPath = state.challenge.ghostPath;
-  if (pct <= 0.20 && ghostPath && ghostPath.length > 0) {
-    const ghostTotal = ghostPath.reduce((sum, step) => sum + step.statValue, 0);
-    if (ghostTotal >= target && state.darts.length <= ghostPath.length) return 2;
+  if (remainingScore === 0) {
+    if (darts.length === ghostLength) {
+      stars = 5; // Flawless
+    } else {
+      stars = 4; // Bullseye
+    }
+  } else if (pctOff <= 0.05) {
+    stars = 3; // Excellent (5% leniency)
+  } else if (pctOff <= 0.20 && darts.length <= ghostLength) {
+    stars = 2; // High Efficiency Bonus
+  } else if (pctOff <= 0.10) {
+    stars = 2; // Near-perfect
+  } else if (state.status === 'out_of_darts' || state.status === 'perfect' || state.status === 'standing') {
+    stars = 1; // Completed without busting
   }
 
-  // 1 star: completed
-  return 1;
+  // Determine Secret Badges (require a win >= 1 star)
+  if (stars >= 1) {
+    // 1. The Scenic Route: Easy Mode, Bullseye, 11+ darts
+    if (mode === 'easy' && remainingScore === 0 && darts.length >= 11) {
+      badges.push('scenic_route');
+    }
+
+    // 2. The Franchise Bonus: All darts from the same franchise (using primary team split by '/')
+    if (darts.length > 0) {
+      const firstTeam = darts[0].playerSeason.teamID.split('/')[0];
+      const allSameTeam = darts.every(d => d.playerSeason.teamID.split('/')[0] === firstTeam);
+      if (allSameTeam) {
+        badges.push('franchise_bonus');
+      }
+    }
+  }
+
+  return { stars, badges };
+}
+
+export function getStarRating(state: GameState): number {
+  return evaluatePostGameAchievements(state).stars;
 }
 
 // ── Selection validation with human-readable rejection reasons ───────────────

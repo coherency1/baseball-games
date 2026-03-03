@@ -73,7 +73,26 @@ export function generateShareText(state: GameState): string {
   // Star rating line (only for completed games)
   const stars = getStarRating(state);
   if (stars > 0) {
-    lines.push('⭐'.repeat(stars));
+    if (stars === 5) {
+      lines.push('💎💎💎💎💎'); // Prismatic / Flawless
+    } else if (stars === 4) {
+      lines.push('🔮🔮🔮🔮');   // Perfect Bullseye
+    } else {
+      lines.push('⭐'.repeat(stars));
+    }
+  }
+
+  // Append secret badges if any
+  if (state.badges && state.badges.length > 0) {
+    const badgeChars = state.badges.map(b => {
+      if (b === 'scenic_route') return '🏕️';
+      if (b === 'franchise_bonus') return '🏢';
+      return '';
+    }).filter(Boolean);
+    
+    if (badgeChars.length > 0) {
+      lines.push(badgeChars.join(' '));
+    }
   }
 
   lines.push('');
@@ -85,7 +104,7 @@ export function generateShareText(state: GameState): string {
   if (status === 'perfect') {
     lines.push(`Score: 0 (Bullseye!) | ${modeLabel}`);
   } else if (status === 'bust') {
-    lines.push(`Score: Bust | ${modeLabel}`);
+    lines.push(`Score: Bust (${state.remainingScore}) | ${modeLabel}`);
   } else {
     lines.push(`Score: ${finalScore} | ${modeLabel}`);
   }

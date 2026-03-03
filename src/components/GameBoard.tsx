@@ -1,10 +1,9 @@
 import { useState, useEffect, useMemo } from 'react';
-import type Fuse from 'fuse.js';
 import type { PlayerSeason, GameState, DailyChallenge, GameMode } from '../types/game';
 import type { PlayerEntry } from '../lib/playerSearch';
-import { buildPlayerIndex, buildFuseIndex } from '../lib/playerSearch';
+import { buildPlayerIndex } from '../lib/playerSearch';
 import { getDailyChallenge, getChallengeByIndex, CHALLENGE_CONFIGS, DEV_OVERRIDE } from '../lib/dailyChallenge';
-import { createInitialState, throwDart, standGame, isGameOver, getUsedSeasonIds, getUsedPlayerIds, getFinalScore, getDartLimit, getStatDensity, validateSelection, getStarRating } from '../lib/gameEngine';
+import { createInitialState, throwDart, standGame, isGameOver, getUsedSeasonIds, getUsedPlayerIds, validateSelection, getStarRating } from '../lib/gameEngine';
 import { Header } from './Header';
 import { ScoreDisplay } from './ScoreDisplay';
 import { DartRow } from './DartRow';
@@ -79,8 +78,7 @@ export function GameBoard() {
 
   // Build search index from ALL players — pool membership is never revealed through search.
   // Validation happens after selection, with specific rejection messages.
-  const playerIndex = useMemo<PlayerEntry[]>(() => buildPlayerIndex(allSeasons), [allSeasons]);
-  const fuse = useMemo<Fuse<PlayerEntry>>(() => buildFuseIndex(playerIndex), [playerIndex]);
+  const searchIndex = useMemo<PlayerEntry[]>(() => buildPlayerIndex(allSeasons), [allSeasons]);
 
   // Load data + init game
   useEffect(() => {
@@ -176,7 +174,7 @@ export function GameBoard() {
   if (loading) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center gap-4 text-slate-400">
-        <span className="text-5xl animate-spin">🎯</span>
+        <img src="/icons/bullseye.png" alt="Loading..." className="w-12 h-12 object-contain animate-spin" />
         <p className="text-lg font-semibold">Loading player data…</p>
       </div>
     );
@@ -253,7 +251,7 @@ export function GameBoard() {
         {!gameOver ? (
           <>
             <PlayerSearch
-              fuse={fuse}
+              searchIndex={searchIndex}
               allSeasons={allSeasons}
               challengeStatKey={gameState.challenge.statKey}
               challengeSeasonStart={gameState.challenge.seasonStart ?? gameState.challenge.season}
@@ -270,9 +268,9 @@ export function GameBoard() {
               <div className="px-4">
                 <button
                   onClick={handleStand}
-                  className="w-full py-3 rounded-xl bg-amber-900/30 border border-amber-700 hover:bg-amber-900/50 text-amber-300 font-bold text-sm transition-colors flex items-center justify-center gap-2"
+                  className="w-full py-3 rounded-full bg-slate-900/80 border border-slate-700 hover:bg-slate-800 text-slate-300 font-bold text-sm transition-colors flex items-center justify-center gap-2 shadow-sm"
                 >
-                  🏳️ Stand — Lock in Score
+                  <img src="/icons/stand.png" alt="Stand" className="w-5 h-5 object-contain" /> Stand — Lock in Score
                 </button>
               </div>
             )}
@@ -297,15 +295,15 @@ export function GameBoard() {
           <div className="px-4 flex gap-3">
             <button
               onClick={() => setShowShare(true)}
-              className="flex-1 py-3 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-sm transition-colors"
+              className="flex-1 py-3 rounded-full bg-sky-600 hover:bg-sky-500 text-white font-bold text-sm transition-colors shadow-lg shadow-sky-900/20"
             >
               📋 Share Result
             </button>
             <button
               onClick={handleNewGame}
-              className="flex-1 py-3 rounded-xl bg-slate-700 hover:bg-slate-600 text-slate-200 font-bold text-sm transition-colors"
+              className="flex-1 py-3 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-sm transition-colors border border-slate-700"
             >
-              🎯 New Game
+              <img src="/icons/bullseye.png" alt="New Game" className="w-5 h-5 object-contain" /> New Game
             </button>
           </div>
         )}

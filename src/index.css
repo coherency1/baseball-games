@@ -1,5 +1,9 @@
 @import "tailwindcss";
 
+@theme {
+  --font-sans: "Outfit", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+}
 :root {
   font-synthesis: none;
   text-rendering: optimizeLegibility;
@@ -10,8 +14,8 @@
 body {
   margin: 0;
   min-height: 100vh;
-  background-color: #0f172a;
-  color: #f1f5f9;
+  background-color: #020617; /* Tailwind slate-950 */
+  color: #cbd5e1; /* Tailwind slate-300 */
 }
 
 * {
@@ -23,9 +27,9 @@ body {
   width: 6px;
 }
 ::-webkit-scrollbar-track {
-  background: #1e293b;
+  background: #0f172a; /* Tailwind slate-900 */
 }
 ::-webkit-scrollbar-thumb {
-  background: #475569;
+  background: #334155; /* Tailwind slate-700 */
   border-radius: 3px;
 }

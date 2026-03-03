@@ -1,11 +1,11 @@
 import { useState, useRef, useEffect, useMemo } from 'react';
-import type Fuse from 'fuse.js';
+
 import type { PlayerSeason } from '../types/game';
 import type { PlayerEntry } from '../lib/playerSearch';
 import { searchPlayers, getPlayerSeasons } from '../lib/playerSearch';
 
 interface PlayerSearchProps {
-  fuse: Fuse<PlayerEntry>;
+  searchIndex: PlayerEntry[];
   allSeasons: PlayerSeason[];
   challengeStatKey: string;
   challengeSeasonStart: number;
@@ -19,7 +19,7 @@ interface PlayerSearchProps {
 }
 
 export function PlayerSearch({
-  fuse,
+  searchIndex,
   allSeasons,
   challengeStatKey,
   challengeSeasonStart,
@@ -53,10 +53,26 @@ export function PlayerSearch({
       setShowDropdown(false);
       return;
     }
-    const found = searchPlayers(fuse, query, 8, challengeSeasonStart, challengeSeasonEnd);
-    setResults(found);
-    setShowDropdown(found.length > 0);
-  }, [query, fuse]);
+    const found = searchPlayers(searchIndex, query, 30, challengeSeasonStart, challengeSeasonEnd);
+
+    // Filter out players whose career or seasons are already fully picked
+    const availablePlayers = found.filter(player => {
+      // Normal/Hard mode: player entirely blocked
+      if (usedPlayerIds?.has(player.playerID)) return false;
+
+      // Easy mode: check if any valid season is still un-used
+      const all = getPlayerSeasons(allSeasons, player.playerID, challengeStatKey as never, usedIds, usedPlayerIds);
+      const validSeasons = challengeSeasonEnd !== undefined
+        ? all.filter(item => item.season.yearID >= challengeSeasonStart && item.season.yearID <= challengeSeasonEnd)
+        : all.filter(item => item.season.yearID === challengeSeasonStart);
+
+      return validSeasons.some(s => !s.used);
+    });
+
+    const finalResults = availablePlayers.slice(0, 8);
+    setResults(finalResults);
+    setShowDropdown(finalResults.length > 0);
+  }, [query, searchIndex, allSeasons, challengeStatKey, challengeSeasonStart, challengeSeasonEnd, usedIds, usedPlayerIds]);
 
   function handleSelectPlayer(player: PlayerEntry) {
     const all = getPlayerSeasons(allSeasons, player.playerID, challengeStatKey as never, usedIds, usedPlayerIds);
@@ -121,12 +137,12 @@ export function PlayerSearch({
             disabled={disabled}
             placeholder={disabled ? 'Game over' : challengeSeasonEnd !== undefined ? `Search players from ${challengeSeasonStart}–${challengeSeasonEnd}…` : `Search players from ${challengeSeasonStart}…`}
             className={`
-              w-full pl-12 pr-4 py-4 rounded-xl text-base font-medium
-              bg-slate-800 border-2 text-white placeholder-slate-500
-              focus:outline-none transition-colors
+              w-full pl-12 pr-4 py-3.5 rounded-full text-sm font-medium
+              bg-slate-900 border border-slate-700 text-slate-200 placeholder-slate-500
+              focus:outline-none transition-all shadow-[inset_0_2px_4px_rgba(0,0,0,0.6)]
               ${disabled
-                ? 'border-slate-700 opacity-50 cursor-not-allowed'
-                : 'border-slate-600 focus:border-blue-500 hover:border-slate-500'
+                ? 'opacity-50 cursor-not-allowed'
+                : 'focus:border-rose-500 focus:ring-1 focus:ring-rose-500/50 hover:bg-slate-800'
               }
             `}
           />
@@ -134,19 +150,21 @@ export function PlayerSearch({
 
         {/* Player autocomplete dropdown (opens upward since search is at page bottom) */}
         {showDropdown && !selectedPlayer && results.length > 0 && (
-          <div className="absolute z-50 left-4 right-4 bottom-full mb-1 bg-slate-800 border border-slate-600 rounded-xl shadow-2xl overflow-hidden max-h-72 overflow-y-auto">
-            {results.map(player => (
-              <button
-                key={player.playerID}
-                onClick={() => handleSelectPlayer(player)}
-                className="w-full text-left px-4 py-3 hover:bg-slate-700 flex items-center justify-between border-b border-slate-700 last:border-0 transition-colors"
-              >
-                <span className="font-semibold text-white text-sm">{player.name}</span>
-                <span className="text-xs text-slate-400 ml-2">
-                  {player.careerStart}–{player.careerEnd}
-                </span>
-              </button>
-            ))}
+          <div className="absolute z-50 left-4 right-4 bottom-full mb-3 bg-slate-900 border border-slate-700 rounded-2xl shadow-[0_-10px_40px_rgba(0,0,0,0.8)] overflow-hidden max-h-72 flex flex-col">
+            <div className="overflow-y-auto w-full p-2 space-y-0.5">
+              {results.map(player => (
+                <button
+                  key={player.playerID}
+                  onClick={() => handleSelectPlayer(player)}
+                  className="w-full text-left px-3 py-2 rounded-xl hover:bg-slate-800 flex items-center justify-between transition-colors group"
+                >
+                  <span className="font-semibold text-slate-200 text-sm group-hover:text-white transition-colors">{player.name}</span>
+                  <span className="text-[10px] font-mono text-slate-500">
+                    {player.careerStart}–{player.careerEnd}
+                  </span>
+                </button>
+              ))}
+            </div>
           </div>
         )}
 
@@ -161,25 +179,25 @@ export function PlayerSearch({
       {/* Season picker modal overlay */}
       {selectedPlayer && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 px-4"
           onClick={handleCloseModal}
         >
           <div
-            className="w-full max-w-sm mx-4 bg-slate-800 border border-slate-600 rounded-2xl shadow-2xl overflow-hidden"
+            className="w-full max-w-sm bg-slate-900 border border-slate-700 rounded-3xl shadow-2xl overflow-hidden"
             onClick={e => e.stopPropagation()}
           >
             {/* Modal header */}
-            <div className="flex items-center gap-3 px-4 py-3 border-b border-slate-700">
+            <div className="flex items-center gap-3 px-5 py-4 border-b border-slate-800 bg-slate-950">
               <button
                 onClick={handleBack}
-                className="text-slate-400 hover:text-white transition-colors text-lg font-bold"
+                className="text-slate-400 hover:text-rose-400 transition-colors text-lg font-bold w-8 h-8 flex items-center justify-center rounded-full hover:bg-slate-800"
                 aria-label="Back to search"
               >
                 ←
               </button>
               <div>
-                <p className="text-sm font-bold text-white">{selectedPlayer.name}</p>
-                <p className="text-xs text-slate-400">
+                <p className="text-sm font-bold text-white tracking-wide">{selectedPlayer.name}</p>
+                <p className="text-[10px] text-slate-400 uppercase tracking-widest mt-0.5">
                   Pick a {challengeStatKey} season
                   {challengeSeasonEnd !== undefined
                     ? ` (${challengeSeasonStart}–${challengeSeasonEnd})`
@@ -189,28 +207,28 @@ export function PlayerSearch({
             </div>
 
             {/* Season list */}
-            <div className="max-h-80 overflow-y-auto">
+            <div className="max-h-80 overflow-y-auto p-2 space-y-0.5">
               {playerSeasons.length > 0 ? (
-                playerSeasons.map(({ season, statValue, used }) => (
+                playerSeasons.map(({ season, used }) => (
                   <button
                     key={season.id}
                     onClick={() => !used && handleSelectSeason(season)}
                     disabled={used}
                     className={`
-                      w-full text-left px-4 py-3 flex items-center justify-between
-                      border-b border-slate-700 last:border-0 transition-colors
+                      w-full text-left px-4 py-2.5 rounded-xl flex items-center justify-between
+                      transition-all group
                       ${used
                         ? 'opacity-40 cursor-not-allowed text-slate-500'
-                        : 'hover:bg-slate-700 cursor-pointer'
+                        : 'hover:bg-slate-800 cursor-pointer border border-transparent hover:border-slate-700'
                       }
                     `}
                   >
-                    <div>
-                      <span className="font-semibold text-white text-sm">{season.yearID}</span>
-                      {showTeams && <span className="text-xs text-slate-400 ml-2">{season.teamID}</span>}
-                      {used && <span className="text-xs text-slate-500 ml-2">(used)</span>}
+                    <div className="flex items-center gap-3">
+                      <span className={`font-mono font-bold text-sm ${used ? 'text-slate-500' : 'text-slate-200 group-hover:text-white'}`}>{season.yearID}</span>
+                      {showTeams && <span className="text-[10px] font-mono text-slate-500 tracking-wider bg-slate-800/50 px-1.5 py-0.5 rounded">{season.teamID}</span>}
                     </div>
-                    </button>
+                    {used && <span className="text-[10px] font-bold uppercase tracking-widest text-rose-500/70">USED</span>}
+                  </button>
                 ))
               ) : (
                 <p className="px-4 py-4 text-sm text-slate-500 text-center">

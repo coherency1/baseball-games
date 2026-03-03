@@ -11,12 +11,12 @@ interface ScoreDisplayProps {
   starRating?: number;        // 0-3, only provided when game is over
 }
 
-const STATUS_CONFIG: Record<GameStatus, { label: string; color: string; bg: string }> = {
-  playing:      { label: 'Remaining',      color: 'text-white',       bg: 'bg-slate-800' },
-  perfect:      { label: '🎯 Bullseye!',   color: 'text-green-400',  bg: 'bg-green-900/30' },
-  bust:         { label: '💥 Bust!',        color: 'text-red-400',    bg: 'bg-red-900/30' },
-  standing:     { label: 'Final Score',     color: 'text-amber-400',  bg: 'bg-amber-900/30' },
-  out_of_darts: { label: 'Out of Darts',    color: 'text-orange-400', bg: 'bg-orange-900/30' },
+const STATUS_CONFIG: Record<GameStatus, { label: React.ReactNode; color: string; bg: string }> = {
+  playing:      { label: 'REMAINING',      color: 'text-rose-500',    bg: 'bg-slate-900 border-slate-700' },
+  perfect:      { label: <span className="flex items-center gap-1.5"><img src="/icons/bullseye.png" alt="Bullseye" className="w-3.5 h-3.5"/> BULLSEYE</span>,    color: 'text-emerald-400', bg: 'bg-emerald-950 border-emerald-900/80 shadow-[inset_0_0_20px_rgba(16,185,129,0.1)]' },
+  bust:         { label: <span className="flex items-center gap-1.5"><img src="/icons/bust.png" alt="Bust" className="w-3.5 h-3.5"/> BUSTED</span>,      color: 'text-red-500',     bg: 'bg-red-950 border-red-900/80 shadow-[inset_0_0_20px_rgba(239,68,68,0.1)]' },
+  standing:     { label: 'FINAL SCORE',    color: 'text-amber-400',   bg: 'bg-amber-950 border-amber-900/80 shadow-[inset_0_0_20px_rgba(245,158,11,0.1)]' },
+  out_of_darts: { label: 'OUT OF DARTS',   color: 'text-orange-400',  bg: 'bg-orange-950 border-orange-900/80 shadow-[inset_0_0_20px_rgba(249,115,22,0.1)]' },
 };
 
 export function ScoreDisplay({ targetScore, remainingScore, status, dartsThrown, dartLimit, mode, strikes = 0, starRating }: ScoreDisplayProps) {
@@ -26,53 +26,67 @@ export function ScoreDisplay({ targetScore, remainingScore, status, dartsThrown,
   const hasDartLimit = dartLimit !== Infinity;
 
   return (
-    <div className={`w-full max-w-2xl mx-auto px-4 py-5 rounded-2xl ${cfg.bg} border border-slate-700`}>
+    <div className={`w-full max-w-2xl mx-auto px-5 py-5 rounded-2xl ${cfg.bg} border backdrop-blur-sm shadow-xl shadow-black/40`}>
       {/* Score number */}
-      <div className="text-center">
-        <p className="text-xs uppercase tracking-widest text-slate-400 mb-1">{cfg.label}</p>
-        <div className={`text-7xl font-black tabular-nums leading-none ${cfg.color}`}>
+      <div className="flex flex-col items-center">
+        <p className="text-[10px] uppercase tracking-widest text-slate-500 mb-1 font-bold">{cfg.label}</p>
+        <div className={`text-7xl font-mono font-black tabular-nums leading-none tracking-tighter ${cfg.color}`}>
           {remainingScore}
         </div>
-        <p className="text-sm text-slate-500 mt-2">
-          Target: <span className="text-slate-300 font-semibold">{targetScore}</span>
-          {dartsThrown > 0 && (
-            <span className="ml-3">
-              Darts: <span className="text-slate-300 font-semibold">
-                {dartsThrown}{hasDartLimit ? `/${dartLimit}` : ''}
-              </span>
+        <div className="flex items-center gap-4 mt-3 text-xs uppercase tracking-wider font-bold">
+          <div className="flex flex-col items-center">
+            <span className="text-slate-500 text-[9px]">TARGET</span>
+            <span className="text-sky-400 font-mono text-sm">{targetScore}</span>
+          </div>
+          <div className="w-px h-6 bg-slate-800"></div>
+          <div className="flex flex-col items-center">
+            <span className="text-slate-500 text-[9px]">DARTS</span>
+            <span className="text-slate-300 font-mono text-sm">
+              {dartsThrown}{hasDartLimit ? <span className="text-slate-600">/{dartLimit}</span> : ''}
             </span>
+          </div>
+          {mode === 'easy' && status === 'playing' && (
+            <>
+              <div className="w-px h-6 bg-slate-800"></div>
+              <div className="flex flex-col items-center">
+                <span className="text-slate-500 text-[9px]">STRIKES</span>
+                <span className={`${strikes > 0 ? 'text-orange-400' : 'text-slate-300'} font-mono text-sm`}>
+                  {strikes}/3
+                </span>
+              </div>
+            </>
           )}
-        </p>
-        {/* Strike counter for Easy mode */}
-        {mode === 'easy' && strikes > 0 && status === 'playing' && (
-          <p className="text-sm text-orange-400 font-semibold mt-1">
-            ⚠️ {strikes}/3 strikes
-          </p>
-        )}
+        </div>
+        
         {/* Star rating (end-game only) */}
         {starRating !== undefined && starRating > 0 && status !== 'playing' && (
-          <p className="text-2xl mt-2 tracking-wider">
-            {'⭐'.repeat(starRating)}{'☆'.repeat(3 - starRating)}
-          </p>
+          <div className="flex gap-1.5 mt-4 justify-center items-center h-8 drop-shadow-md">
+            {starRating === 5 ? (
+              Array(5).fill(0).map((_, i) => <img key={i} src="/icons/diamond.png" alt="Diamond" className="w-6 h-6 animate-pulse" />)
+            ) : starRating === 4 ? (
+              Array(4).fill(0).map((_, i) => <img key={i} src="/icons/crystal.png" alt="Crystal" className="w-6 h-6 animate-pulse" />)
+            ) : (
+              <>
+                {Array(starRating).fill(0).map((_, i) => <img key={`full-${i}`} src="/icons/star.png" alt="Star" className="w-6 h-6 drop-shadow-md" />)}
+                {Array(Math.max(0, 3 - starRating)).fill(0).map((_, i) => <img key={`empty-${i}`} src="/icons/star.png" alt="Empty Star" className="w-6 h-6 opacity-30 grayscale" />)}
+              </>
+            )}
+          </div>
         )}
       </div>
 
       {/* Progress bar */}
-      <div className="mt-4 h-2 bg-slate-700 rounded-full overflow-hidden">
+      <div className="mt-5 h-1.5 bg-slate-800 rounded-full overflow-hidden border border-slate-900/50">
         <div
-          className={`h-full rounded-full transition-all duration-500 ${
-            status === 'bust' ? 'bg-red-500' :
-            status === 'perfect' ? 'bg-green-500' :
-            status === 'out_of_darts' ? 'bg-orange-500' :
-            progressPct > 80 ? 'bg-amber-400' :
-            'bg-blue-500'
+          className={`h-full rounded-full transition-all duration-500 shadow-[0_0_10px_rgba(0,0,0,0.5)] ${
+            status === 'bust' ? 'bg-red-500 shadow-red-500/50' :
+            status === 'perfect' ? 'bg-emerald-400 shadow-emerald-400/50' :
+            status === 'out_of_darts' ? 'bg-orange-500 shadow-orange-500/50' :
+            progressPct > 80 ? 'bg-amber-400 shadow-amber-400/50' :
+            'bg-rose-500 shadow-rose-500/50'
           }`}
           style={{ width: `${progressPct}%` }}
         />
-      </div>
-      <div className="flex justify-between mt-1 text-xs text-slate-500">
-        <span>{targetScore}</span>
-        <span>0</span>
       </div>
     </div>
   );
