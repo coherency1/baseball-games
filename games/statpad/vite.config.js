@@ -4,6 +4,10 @@ import react from '@vitejs/plugin-react'
 export default defineConfig({
   base: '/baseball/statpad/',
   plugins: [react()],
+  build: {
+    outDir: '../../dist/statpad',
+    emptyOutDir: true,
+  },
   test: {
     environment: 'node',
   },

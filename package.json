@@ -1,22 +1,12 @@
 {
-  "name": "statpad-game",
+  "name": "baseball-games",
   "private": true,
-  "version": "1.0.0",
-  "type": "module",
+  "description": "Coherency Baseball Games — all games in one repo",
   "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "preview": "vite preview",
-    "test": "vitest run",
-    "test:watch": "vitest"
-  },
-  "dependencies": {
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0"
-  },
-  "devDependencies": {
-    "@vitejs/plugin-react": "^4.2.1",
-    "vite": "^5.1.0",
-    "vitest": "^4.0.18"
+    "build": "npm run build:statpad && npm run build:deadeye",
+    "build:statpad": "cd games/statpad && npm ci && npm run build",
+    "build:deadeye": "cd games/deadeye && npm ci && npm run build",
+    "dev:statpad": "cd games/statpad && npm run dev",
+    "dev:deadeye": "cd games/deadeye && npm run dev"
   }
 }
