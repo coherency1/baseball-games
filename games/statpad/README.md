@@ -1,6 +1,10 @@
-# StatPad Game
+# StatPad
 
-A baseball trivia game inspired by StatpadGame.com. Pick player-seasons that match category filters and maximize your score.
+Baseball trivia puzzle. Pick player-seasons that match category filters to maximize your score across 5 rows.
+
+**Live at:** [coherency.lol/baseball/statpad](https://coherency.lol/baseball/statpad/)
+
+Part of the [baseball-games](../../README.md) monorepo.
 
 ## Quick Start
 
