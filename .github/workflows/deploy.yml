@@ -24,9 +24,19 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: npm
-      - run: npm ci
-      - run: npx vite build
+
+      - name: Build StatPad
+        working-directory: games/statpad
+        run: |
+          npm ci
+          npm run build
+
+      - name: Build Deadeye
+        working-directory: games/deadeye
+        run: |
+          npm ci
+          npm run build
+
       - uses: actions/configure-pages@v4
       - uses: actions/upload-pages-artifact@v3
         with:

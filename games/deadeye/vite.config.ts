@@ -3,12 +3,14 @@ import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 
 export default defineConfig({
-  base: '/deadeye/',
+  base: '/baseball/deadeye/',
   plugins: [
     react(),
     tailwindcss(),
   ],
   build: {
+    outDir: '../../dist/deadeye',
+    emptyOutDir: true,
     rollupOptions: {
       output: {
         manualChunks: {
